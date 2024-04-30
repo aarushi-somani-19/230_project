@@ -1,0 +1,25 @@
+---
+title: "ch10"
+output: html_document
+date: "2024-04-28"
+---
+
+# Proving theorem 10.1 and 10.2 regarding the R^2
+
+```{r}
+full_model1sum <- summary(full_model1)
+r2 = full_model1sum$r.squared
+cleaned_data <- na.omit(emp_aff_math_biz[, c("revenue_all", "wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S")])
+
+# Check if the number of observations matches the number of fitted values
+if(nrow(cleaned_data) == length(full_model1$fitted.values)) {
+  # Calculate the correlation coefficient between the observed and fitted values
+  corr_coef <- cor(cleaned_data$revenue_all, full_model1$fitted.values)^2
+} else {
+  stop("The number of cleaned observations does not match the number of fitted values.")
+}
+print(all.equal(r2, corr_coef, check.names = FALSE )) #Th 10.1
+
+fstat = full_model1sum$fstatistic
+print(all.equal( fstat [1], fstat [3]/ fstat [2]* r2/(1-r2), check.names = FALSE )) #Th 10.2
+```

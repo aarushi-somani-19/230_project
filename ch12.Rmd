@@ -1,0 +1,102 @@
+---
+title: "normal and conformal prediction"
+output: html_document
+date: "2024-04-28"
+---
+
+## Chapter 12 - Normal and Conformal Prediction
+
+```{r}
+full_model_12 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = cleaned_data)
+
+# Extract necessary components from the model
+n <- nrow(cleaned_data)
+p <- length(coef(full_model1)) - 1 # minus 1 for the intercept
+y <- cleaned_data$revenue_all
+
+e.sigma <- summary(full_model_12)$sigma
+X <- model.matrix(full_model_12)
+Y <- full_model_12$model$revenue_all
+X.QR <- qr(X)
+X.Q <- qr.Q(X.QR)
+X.R <- qr.R(X.QR)
+Gram.inv <- solve(t(X.R) %*% X.R)
+hatmat <- X.Q %*% t(X.Q)
+resmat <- diag(n) - hatmat
+leverage <- diag(hatmat)
+Resvec <- residuals(full_model_12)
+cvt <- qt(0.975, df = n - p - 1)
+
+# Initialize matrices for storing predictions and intervals
+loo.pred <- matrix(0, n, 5)
+loo.cov <- matrix(0, n, 2)
+
+# Perform leave-one-out prediction
+for (i in 1:n) {
+  # Compute leave-one-out coefficients
+  beta.i <- coef(full_model1) - Gram.inv %*% X[i, ] * Resvec[i] / (1 - leverage[i])
+  e.sigma.i <- sqrt(e.sigma^2 * (n - p) - (Resvec[i])^2 / (1 - leverage[i])) / sqrt(n - p - 1)
+  pred.i <- sum(X[i, ] * beta.i)
+  
+  # Compute normal prediction interval
+  lower.i <- pred.i - cvt * e.sigma.i / sqrt(1 - leverage[i])
+  upper.i <- pred.i + cvt * e.sigma.i / sqrt(1 - leverage[i])
+  loo.pred[i, 1:3] <- c(pred.i, lower.i, upper.i)
+  
+  # Compute the conformal prediction interval
+  non_conformity_scores <- abs(Resvec[-i] / sqrt(1 - leverage[-i]))
+  non_conformity_score_new <- abs(Resvec[i] / sqrt(1 - leverage[i]))
+  alpha <- 0.05 # For a 95% prediction interval
+  quantile <- quantile(non_conformity_scores, probs = 1 - alpha, type = 1)
+    
+  # Conformal prediction interval for the i-th observation
+  loo.pred[i, 4] <- Y[i] - quantile # lower interval
+  loo.pred[i, 5] <- Y[i] + quantile # upper interval
+}
+
+# Set column names for the prediction matrix
+colnames(loo.pred) <- c("point", "G.l", "G.u", "c.l", "c.u")
+```
+
+```{r}
+# Function to plot intervals for a range of indices
+plot_intervals <- function(indices, y, predictions, title) {
+  plot(y[indices], type = 'p', pch = 19, col = 'gray', ylim = range(predictions[indices,]),
+       main = title, xlab = "Indices", ylab = "Outcomes and Predicted Values")
+  
+  # Add lines for the predicted values
+  lines(predictions[indices, "point"], type = 'l', col = 'black', lwd = 2)
+  
+  # Add lines for the normal intervals
+  lines(predictions[indices, "G.l"], type = 'l', lty = 'dashed', col = 'red', lwd = 2)
+  lines(predictions[indices, "G.u"], type = 'l', lty = 'dashed', col = 'red', lwd = 2)
+  
+  # Add lines for the conformal intervals
+  lines(predictions[indices, "c.l"], type = 'l', lty = 'dotted', col = 'blue', lwd = 2)
+  lines(predictions[indices, "c.u"], type = 'l', lty = 'dotted', col = 'blue', lwd = 2)
+}
+
+# Create the plots
+par(mfrow = c(1, 3), mar = c(4.5, 4.5, 2, 1))
+
+# You might need to adjust these indices to match your dataset
+plot_intervals(1:20, y, loo.pred, "January 2020")
+plot_intervals(1151:1171, y, loo.pred, "November 2020")
+plot_intervals(1961:1991, y, loo.pred, "March 2021")
+
+# Reset to default layout
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+```
+The graph presents outcomes and predicted values at three distinct points in time relevant to the COVID-19 pandemic and its economic impacts:
+
+January 2020 - Onset of COVID-19: The predictions and intervals in this first panel are relatively tight, indicating a period of stability or predictability before the pandemic significantly impacted the economy. The model's predictions align closely with actual outcomes, and there's less variability in the data. This could suggest that the pre-pandemic economic models were effective in forecasting small business revenue based on the factors like employment and consumer spending.
+November 2020 - Vaccine Rollout: During this time, there's more variability and a wider spread of the prediction and confidence intervals, indicating increased uncertainty. This could reflect the economic turbulence due to the initial phases of vaccine distribution, changes in consumer behavior, varying restrictions, and the adapting business environment. The model may have struggled to predict outcomes as effectively during this period due to the rapidly changing economic conditions.
+March 2021 - Second COVID-19 Wave: Here, the outcomes and predicted values show even greater variability and the intervals are much wider, which implies significant uncertainty in predictions. The second wave likely introduced further economic disruptions, resulting in higher volatility in small business revenue. This suggests that the factors influencing revenue became more complex and less predictable during this period, possibly due to lockdowns, changes in employment patterns, and shifts in consumer priorities.
+Takeaways and Storyline:
+
+The model’s predictive power seems to wane as the pandemic progresses, likely due to increasing external shocks and volatility not captured fully by the model's covariates.
+The onset of the pandemic likely introduced new factors or magnified the impact of existing variables, such as regional restrictions or changes in consumer behavior, which are not accounted for in a standard economic model.
+The widening prediction and confidence intervals during and after the vaccine rollout indicate that the economic environment became increasingly uncertain, reflecting real-world complexities and the limitations of using historical data to predict outcomes during unprecedented events.
+The data suggests that while certain factors like region, COVID-19 waves, employment, and consumer spending are significant, additional variables or more complex models might be needed to better understand and predict revenue during such a period.
+In conclusion, these visualizations underscore the challenges in economic forecasting during a pandemic and highlight the need for flexible, adaptable models that can incorporate real-time data and account for sudden changes in various economic drivers.
+

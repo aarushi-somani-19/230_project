@@ -1,0 +1,127 @@
+---
+title: "ch13"
+output: html_document
+date: "2024-04-28"
+---
+
+## chapter 13 : MODEL SELECTION CRITERIA LIKE AIC, BIC, R^2?? 
+
+#FORWARD AND BACKWARD REGRESSIONS - tried but cant run due to 93 covariates
+
+## Do not run!!
+
+```{r}
+# Full model with all predictors
+full_model <- lm(revenue_all ~ ., data = emp_aff_math_biz) # full model
+null_model <- lm(revenue_all ~ 1, data = emp_aff_math_biz) # null model
+
+# Forward selection using stepAIC from the MASS package
+forward_model <- stepAIC(null_model, direction = "forward", scope = list(upper = full_model, lower = null_model))
+summary(forward_model)
+```
+
+# but can run if we subset data 
+
+```{r}
+cleaned_data <- na.omit(emp_aff_math_biz[, c("revenue_all", "wave1", "wave2", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S")]) #3020 obs
+
+# Full model with all predictors
+full_model <- lm(revenue_all ~ ., data = cleaned_data) # full model
+null_model <- lm(revenue_all ~ 1, data = cleaned_data) # null model
+
+# Forward selection using stepAIC from the MASS package
+forward_model <- stepAIC(null_model, direction = "forward", scope = list(upper = full_model, lower = null_model))
+summary(forward_model)
+```
+
+#VIF - done in the main script for each model
+
+#TRAINING AND TESTING - need to extend to more covariates
+
+```{r}
+# Assuming cleaned_data is your full dataset
+
+# Splitting the data
+set.seed(123) # Setting seed for reproducibility
+sample_size <- floor(0.8 * nrow(cleaned_data)) # 80% for training
+train_indices <- sample(seq_len(nrow(cleaned_data)), size = sample_size)
+
+train_data <- cleaned_data[train_indices, ]
+test_data <- cleaned_data[-train_indices, ]
+
+# Fit the model on the training set
+full_model1_train <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, 
+                        data = train_data)
+summary(full_model1_train)
+
+# Make predictions on the testing set
+test_predictions <- predict(full_model1_train, newdata = test_data)
+
+# Evaluate the model's performance
+# Here, we use Mean Squared Error (MSE) and R-squared as metrics
+mse_test <- mean((test_data$revenue_all - test_predictions)^2)
+r_squared_test <- 1 - sum((test_data$revenue_all - test_predictions)^2) / sum((test_data$revenue_all - mean(test_data$revenue_all))^2)
+
+# Output the performance
+cat("Test MSE:", mse_test, "\n")
+cat("Test R-squared:", r_squared_test, "\n")
+```
+
+```{r}
+# Fit models with increasing number of covariates
+#covariates <- c("wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S", "spend_durables", "spend_nondurables", "spend_inperson", "badges", "merchants_professional", "revenue_professional", "merchants_retail", "revenue_retail")
+
+# Assuming cleaned_data is your dataset
+
+set.seed(123) # For reproducibility
+sample_size <- floor(0.8 * nrow(cleaned_data))
+train_indices <- sample(seq_len(nrow(cleaned_data)), size = sample_size)
+
+train_data <- cleaned_data[train_indices, ]
+test_data <- cleaned_data[-train_indices, ]
+
+# Initialize vectors to store the RSS for training and testing data
+rss_train <- numeric(p)
+rss_test <- numeric(p)
+
+# Fit models with increasing number of covariates
+covariates <- c("wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S") # Order covariates by importance if possible
+
+for (i in seq_along(covariates)) {
+  formula <- as.formula(paste("revenue_all ~", paste(covariates[1:i], collapse = "+")))
+  model <- lm(formula, data = train_data)
+  
+  # Calculate RSS for training data
+  predictions_train <- predict(model, newdata = train_data)
+  rss_train[i] <- sum((train_data$revenue_all - predictions_train)^2)
+  
+  # Calculate RSS for testing data
+  predictions_test <- predict(model, newdata = test_data)
+  rss_test[i] <- sum((test_data$revenue_all - predictions_test)^2)
+}
+
+# Plot the results
+plot(seq_along(covariates), rss_train, type = "b", pch = 19, col = "black", ylim = c(min(c(rss_train, rss_test)), max(c(rss_train, rss_test))),
+     xlab = "# covariates", ylab = "RSS", main = "Training and Testing Errors")
+points(seq_along(covariates), rss_test, type = "b", pch = 17, col = "red")
+legend("topright", legend = c("Training Data", "Testing Data"), pch = c(19, 17), col = c("black", "red"))
+
+```
+
+# CV - doesnt work??
+
+```{r}
+# Define the number of folds for k-fold cross-validation
+k <- 10
+
+# Set up k-fold cross-validation on the full dataset
+set.seed(123)  # for reproducibility
+cv_results <- cv.glm(emp_aff_math_biz, full_model1, K = k)
+
+# Print out the results
+print(cv_results)
+
+# Access the cross-validated estimate of prediction error
+cv_error <- cv_results$delta[1]
+cat("K-fold CV estimate of prediction error:", cv_error, "\n")
+```

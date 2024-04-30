@@ -1,0 +1,166 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-04-27"
+---
+
+```{r}
+library(glmnet)
+library(data.table)
+
+# Data Preparation
+# Convert character columns to numeric
+cols_to_convert <- c("emp_incq1", "emp_incq2", "emp_incq3", "emp_incq4")
+for (col in cols_to_convert) {
+  emp_aff_math_biz[[col]] <- as.numeric(as.character(emp_aff_math_biz[[col]]))
+}
+
+# Selecting predictors
+more_predictors <- c("spend_aap", "spend_acf", "spend_aer", "spend_apg", "spend_durables", "spend_nondurables", "merchants_professional", "merchants_health", "merchants_food_accommodation", "merchants_other_services", "merchants_retail", "NE", "W", "MW", "S", "wave1", "wave2")
+predictors <- c("emp", "spend_all", cols_to_convert, more_predictors)
+emp_aff_math_biz_clean <- na.omit(emp_aff_math_biz[, c("revenue_all", predictors), with = FALSE])
+```
+
+```{r}
+# Create matrices for regression
+x <- as.matrix(emp_aff_math_biz_clean[, ..predictors])
+y <- emp_aff_math_biz_clean$revenue_all
+
+# Set seed for reproducibility
+#set.seed(60)
+
+# Fit the ridge regression model
+ridge_model <- glmnet(x, y, alpha = 0)
+
+# Cross-validation for optimal lambda
+cv_ridge <- cv.glmnet(x, y, alpha = 0)
+plot(cv_ridge)
+best_lambda <- cv_ridge$lambda.min
+
+# Plotting Bias-Variance Tradeoff
+lambda_seq <- seq(0, max(cv_ridge$lambda), length.out = 100)
+bias_seq <- variance_seq <- mse_seq <- rep(0, length(lambda_seq))
+
+for (i in seq_along(lambda_seq)) {
+  ll <- lambda_seq[i]
+  fit <- glmnet(x, y, alpha = 0, lambda = ll)
+  pred <- predict(fit, s = ll, newx = x)
+  bias_seq[i] <- mean((y - mean(y))^2)  # Theoretical bias, for demonstration
+  variance_seq[i] <- var(pred)
+  mse_seq[i] <- mean((y - pred)^2)
+}
+
+plot(lambda_seq, bias_seq, type = "l", col = "red", ylim = c(min(c(bias_seq, variance_seq, mse_seq)), max(c(bias_seq, variance_seq, mse_seq))), xlab = "Lambda", ylab = "Metric Value", main = "Bias-Variance Tradeoff")
+lines(lambda_seq, variance_seq, col = "blue")
+lines(lambda_seq, mse_seq, col = "green")
+legend("topright", legend = c("Bias^2", "Variance", "MSE"), col = c("red", "blue", "green"), lty = 1)
+best_lambda
+```
+
+First Plot (most helpful?)
+Error Path: The plot shows cross-validation process used to select the optimal regularization parameter (lambda) for ridge regression. The x-axis represents the log-transformed lambda values, while the y-axis represents the mean squared error (MSE) for each value of lambda. The plot's trend shows how the model's prediction error changes as the regularization strength varies.
+
+Ridge regression has been utilized to develop a model that incorporates various predictors, such as employment metrics, consumer spending habits, merchant activities, regional factors, and temporal dynamics to understand their collective impact on revenue. By applying a penalty to the coefficients of the model proportional to their size, ridge regression diminishes the risk of overfitting, which can occur when a model learns the training data too closely and fails to generalize well to unseen data.
+
+The cross-validation process helps in determining the optimal lambda, the regularization parameter, which strikes a balance between model complexity and prediction accuracy. As lambda increases, the penalty on the coefficients becomes more severe, which can lead to underfitting if it's too high, meaning the model becomes too simplistic. Conversely, if lambda is too low, the model risks overfitting, as it does not sufficiently penalize large coefficients.
+
+The plot typically includes a vertical dashed line that marks the lambda value that results in the lowest cross-validated MSE. This is the value chosen as the best trade-off between bias and variance. In some cases, a second vertical dashed line represents the most regularized model within one standard error of the minimum MSE, often selected for its simplicity and slightly higher bias but potentially better generalization to new data.
+
+ The resulting model, therefore, aims to offer a refined understanding of how the different factors you've included as covariates interact to influence revenue. Such a model can be a valuable tool in strategic decision-making, providing guidance on where to focus resources or policy to optimize revenue across various sectors and regions, even as market conditions evolve.
+
+
+# Ch 15 (ols, ridge, lasso)
+
+# MSE comparisons
+
+```{r}
+# OLS
+
+# Split the data into training and test sets
+set.seed(230)  # For reproducibility
+nsample <- nrow(emp_aff_math_biz_clean)
+trainindex <- sample(1:nsample, floor(nsample * 0.9))
+testindex <- (1:nsample)[-trainindex]
+
+# Define the response variable
+yvector <- emp_aff_math_biz_clean$revenue_all
+
+# Prepare the model matrix excluding the response variable
+xmatrix <- model.matrix(~ . - emp_aff_math_biz_clean$revenue_all, data = emp_aff_math_biz_clean)[trainindex, ]
+
+# Fit the linear model using the training set
+ols_lm <- lm(yvector[trainindex] ~ xmatrix)
+
+# Calculate prediction error and MSE using the test set
+y_test <- yvector[testindex]
+predictions_ols <- predict(ols_lm, newdata = list(x_train = x_test))
+mse_ols <- mean((y_test - predictions_ols)^2)
+
+# Ridge and Lasso
+
+# Define the response variable and predictors for training and testing
+y_train <- emp_aff_math_biz_clean$revenue_all[trainindex]
+y_test <- emp_aff_math_biz_clean$revenue_all[testindex]
+x_train <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[trainindex, ]
+x_test <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[testindex, ]
+
+# Ridge regression using glmnet (uses cross-validation to find optimal lambda)
+set.seed(230)  # For reproducibility, important for cross-validation results
+cv_ridge <- cv.glmnet(x_train, y_train, alpha = 0)  # alpha=0 for ridge regression
+optimal_lambda_ridge <- cv_ridge$lambda.min
+ridge_model <- glmnet(x_train, y_train, alpha = 0, lambda = optimal_lambda_ridge)
+
+# Make predictions using the ridge regression model on the testing set
+predictions_ridge <- predict(ridge_model, s = optimal_lambda_ridge, newx = x_test)
+mse_ridge <- mean((y_test - predictions_ridge)^2)
+
+# Lasso regression using glmnet (also uses cross-validation to find optimal lambda)
+cv_lasso <- cv.glmnet(x_train, y_train, alpha = 1)  # alpha=1 for lasso regression
+optimal_lambda_lasso <- cv_lasso$lambda.min
+lasso_model <- glmnet(x_train, y_train, alpha = 1, lambda = optimal_lambda_lasso)
+
+# Make predictions using the lasso regression model on the testing set
+predictions_lasso <- predict(lasso_model, s = optimal_lambda_lasso, newx = x_test)
+mse_lasso <- mean((y_test - predictions_lasso)^2)
+
+# Output the MSE for both OLS, ridge, lasso
+list(mse_ols = mse_ols, mse_ridge = mse_ridge, mse_lasso = mse_lasso)
+```
+
+```{r}
+# Plot MSE's
+# Create a data frame for plotting
+mse_data <- data.frame(
+  Model = c("OLS", "Ridge", "Lasso"),
+  MSE = c(mse_ols, mse_ridge, mse_lasso)
+)
+
+# Plot the data
+mse_plot <- ggplot(mse_data, aes(x = Model, y = MSE, fill = Model)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  scale_fill_brewer(palette = "Pastel1") +
+  labs(title = "Comparison of Model MSE", x = "Model", y = "Mean Squared Error (MSE)") +
+  theme_minimal()
+
+# Display the plot
+print(mse_plot)
+```
+
+Lasso Regression (pink bar) has the lowest MSE, indicating that among the three models, it has the best performance in terms of prediction accuracy on the test data.
+OLS Regression (blue bar) has the highest MSE, suggesting that it may be overfitting the data or not adequately capturing the underlying structure compared to the regularized models.
+Ridge Regression (green bar) performs better than OLS but slightly worse than Lasso in this instance.
+
+Interpretation for reference later:
+"In assessing the predictive performance of various regression models, it was found that regularization techniques notably enhanced model accuracy. The Lasso regression model, which includes a penalty term that can reduce the coefficients of less important features to zero, achieved the lowest MSE (0.0206). This suggests not only improved prediction accuracy but also the potential for a more parsimonious model. Conversely, the OLS regression model exhibited the highest MSE (0.0462), indicative of possible overfitting and an inability to generalize as effectively as the regularized models. Ridge regression, while outperforming OLS, did not reach the predictive accuracy of the Lasso model, finishing with an MSE of 0.0211. These results underscore the value of regularization in managing the trade-off between bias and variance, particularly in the context of datasets with potentially correlated predictors."
+
+
+
+
+
+
+
+
+
+
+
+
