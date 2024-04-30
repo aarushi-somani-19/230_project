@@ -1,0 +1,90 @@
+---
+title: "Chapter 11 - leverage scores and LOO"
+output: html_document
+date: "2024-04-28"
+---
+
+## Chapter 11 code - in reference to full model1
+
+```{r}
+full_model1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+summary(full_model1)
+```
+
+```{r}
+# Calculate leverage scores
+leverage_scores <- hatvalues(full_model1)
+stand_resid <- rstandard(full_model1)
+stud_resid <- rstudent(full_model1)
+cook <- cooks.distance(full_model1)
+
+# Set up plotting area
+par(mfrow = c(2, 2)) # 2 rows, 2 columns
+
+# Plot the leverage (hat) values
+plot(hatvalues(full_model1), main = "Leverage Values", xlab = "Observation", ylab = "Leverage (hat) value", pch = 20, cex = 0.5)
+abline(h = 2 * mean(hatvalues(full_model1)), col = "red") # Add a reference line at twice the average leverage value
+
+# Plot the standardized residuals
+plot(stand_resid, main = "Standardized Residuals", xlab = "Observation", ylab = "Standardized Residuals", pch = 20, cex = 0.5)
+abline(h = 0, col = "red") # Add a reference line at zero
+
+# Plot the studentized residuals
+plot(stud_resid, main = "Studentized Residuals", xlab = "Observation", ylab = "Studentized Residuals", pch = 20, cex = 0.5)
+abline(h = c(-3, 3), col = "red") # Add reference lines at -3 and 3 for identifying potential outliers
+
+# Plot Cook's distance
+plot(cook, main = "Cook's Distance", xlab = "Observation", ylab = "Cook's Distance", pch = 20, cex = 0.5)
+abline(h = 4/(length(cook)-length(coef(full_model1))-2), col = "red") # Add a reference line for Cook's distance
+
+# Reset the plotting area
+par(mfrow = c(1, 1))
+```
+
+Based on the uploaded diagnostic plots, here's what you can interpret:
+
+Leverage Values Plot: Most data points have low leverage, which is good because it means that no single observation unduly influences the regression estimates. However, there are a few points that exceed the common threshold of 2 times the mean leverage value (indicated by the red line). These points with high leverage should be investigated to see if they represent data entry errors, unusual conditions, or influential observations.
+Standardized Residuals Plot: The majority of the standardized residuals lie between -2 and 2, which suggests that the errors are approximately normally distributed. There are a few residuals that exceed these bounds, indicating potential outliers. These should be examined to determine if they may be impacting the regression model significantly.
+Studentized Residuals Plot: Similar to the standardized residuals, the studentized residuals plot indicates potential outliers as some points lie beyond the -3 to 3 range. These points are more extreme and may have a greater influence on the model than those identified by standardized residuals alone.
+Cook's Distance Plot: Most points have very low Cook's distance values, indicating they are not influential on the regression estimates. The red line represents a common rule of thumb for identifying influential points, which is D > 4/(n-k-1). A few points do exceed this threshold, suggesting they have a larger impact on the model and may warrant further investigation.
+
+Overall, these plots suggest that while your regression model appears to be reasonably well-behaved for the majority of the data, there are some observations that may be outliers or potentially influential. Further investigation of these points is warranted to ensure they are not unduly affecting your model's results. This could include checking for data entry errors, understanding if they are true outliers due to exceptional circumstances, or determining if they should be omitted from the analysis for other valid reasons.
+
+We use the leave one out formulas on the points that have high leverage to check whether the coefficients change without them. 
+
+```{r}
+# Often, you might want to look for high leverage points which might be influential
+# A common threshold for high leverage is 2 * (number of predictors + 1) / number of observations
+high_leverage_threshold <- 2 * (length(coef(full_model1)) + 1) / length(leverage_scores)
+
+# Identify high leverage points
+high_leverage_points <- which(leverage_scores > high_leverage_threshold)
+
+# If you want to examine the observations with high leverage
+high_leverage_data <- emp_aff_math_biz[high_leverage_points, ]
+```
+
+```{r}
+# Exclude high leverage points
+emp_aff_math_biz_reduced <- emp_aff_math_biz[-high_leverage_points, ]
+
+# Fit the model with the reduced dataset
+full_model1_reduced <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + 
+                          merchants_all + NE + W + S, 
+                          data = emp_aff_math_biz_reduced)
+
+# Summarize the reduced model to see the new coefficients
+summary(full_model1_reduced)
+```
+```{r}
+# Compare coefficients from both models
+original_coefficients <- summary(full_model1)$coefficients
+reduced_coefficients <- summary(full_model1_reduced)$coefficients
+
+# Look at the changes in estimates and p-values
+comparison <- data.frame(Original = original_coefficients[, "Estimate"],
+                         Reduced = reduced_coefficients[, "Estimate"],
+                         Change = original_coefficients[, "Estimate"] - reduced_coefficients[, "Estimate"])
+
+print(comparison)
+```
