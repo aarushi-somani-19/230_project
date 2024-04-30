@@ -18,8 +18,14 @@ for (col in cols_to_convert) {
 # Selecting predictors
 more_predictors <- c("spend_aap", "spend_acf", "spend_aer", "spend_apg", "spend_durables", "spend_nondurables", "merchants_professional", "merchants_health", "merchants_food_accommodation", "merchants_other_services", "merchants_retail", "NE", "W", "MW", "S", "wave1", "wave2")
 predictors <- c("emp", "spend_all", cols_to_convert, more_predictors)
+setDT(emp_aff_math_biz)
+
+# Replace "." with NA in only the predictor columns
+emp_aff_math_biz[, (predictors) := lapply(.SD, function(x) as.numeric(replace(x, x == ".", NA))), 
+                 .SDcols = predictors]
 emp_aff_math_biz_clean <- na.omit(emp_aff_math_biz[, c("revenue_all", predictors), with = FALSE])
 ```
+
 
 ```{r}
 # Create matrices for regression
@@ -56,7 +62,6 @@ lines(lambda_seq, mse_seq, col = "green")
 legend("topright", legend = c("Bias^2", "Variance", "MSE"), col = c("red", "blue", "green"), lty = 1)
 best_lambda
 ```
-
 First Plot (most helpful?)
 Error Path: The plot shows cross-validation process used to select the optimal regularization parameter (lambda) for ridge regression. The x-axis represents the log-transformed lambda values, while the y-axis represents the mean squared error (MSE) for each value of lambda. The plot's trend shows how the model's prediction error changes as the regularization strength varies.
 
@@ -105,7 +110,6 @@ x_train <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[traini
 x_test <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[testindex, ]
 
 # Ridge regression using glmnet (uses cross-validation to find optimal lambda)
-set.seed(230)  # For reproducibility, important for cross-validation results
 cv_ridge <- cv.glmnet(x_train, y_train, alpha = 0)  # alpha=0 for ridge regression
 optimal_lambda_ridge <- cv_ridge$lambda.min
 ridge_model <- glmnet(x_train, y_train, alpha = 0, lambda = optimal_lambda_ridge)
@@ -128,6 +132,30 @@ list(mse_ols = mse_ols, mse_ridge = mse_ridge, mse_lasso = mse_lasso)
 ```
 
 ```{r}
+# Extract coefficients at the optimal lambda
+coefficients_lasso <- coef(lasso_model, s = optimal_lambda_lasso)
+# Convert to a more readable format, removing zero coefficients
+significant_coefficients <- coefficients_lasso[coefficients_lasso != 0]
+
+# Print the significant predictors along with their names
+if (is.matrix(x_train)) {
+  predictor_names <- colnames(x_train)
+} else {
+  predictor_names <- names(x_train)
+}
+
+# Combine names with coefficients
+significant_predictors <- data.frame(
+  Predictor = predictor_names,
+  Coefficient = as.numeric(significant_coefficients)  # Excludes the intercept
+)
+
+print(significant_predictors)
+```
+
+
+
+```{r}
 # Plot MSE's
 # Create a data frame for plotting
 mse_data <- data.frame(
@@ -145,7 +173,6 @@ mse_plot <- ggplot(mse_data, aes(x = Model, y = MSE, fill = Model)) +
 # Display the plot
 print(mse_plot)
 ```
-
 Lasso Regression (pink bar) has the lowest MSE, indicating that among the three models, it has the best performance in terms of prediction accuracy on the test data.
 OLS Regression (blue bar) has the highest MSE, suggesting that it may be overfitting the data or not adequately capturing the underlying structure compared to the regularized models.
 Ridge Regression (green bar) performs better than OLS but slightly worse than Lasso in this instance.
@@ -157,9 +184,22 @@ Interpretation for reference later:
 
 
 
+```{r}
+# For Lasso, glmnet does not provide AIC/BIC directly, you'll need R-squared and could calculate AIC or BIC manually if necessary
+lasso_pred <- predict(lasso_model, s = cv_lasso$lambda.min, newx = x_train)
+r_squared_lasso <- 1 - sum((y_train - lasso_pred)^2) / sum((y_train - mean(y_train))^2)
+print(paste("R-squared for Lasso: ", r_squared_lasso))
+```
 
 
+```{r}
+test <- lm(revenue_all ~ emp+spend_all+emp_incq1+emp_incq2+emp_incq3+emp_incq4+spend_aap+spend_acf+spend_aer+spend_apg+spend_durables+spend_nondurables+merchants_professional+merchants_health+merchants_food_accommodation+merchants_other_services+merchants_retail+NE+W+S+wave1, data=emp_aff_math_biz_clean)
+summary(test)
+```
 
+```{r}
+vif(test)
+```
 
 
 

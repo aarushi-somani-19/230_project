@@ -134,5 +134,102 @@ summary(model4) #homo
 plot(model4)
 ```
 
+# Extra models with full_model1 for justification
 
+## Model with spend_all quartiles
+
+```{r}
+# extend with spending quartiles
+
+model_0 <- lm(revenue_all ~ wave1 + emp + spend_all_q1 + spend_all_q2 + spend_all_q3 + spend_all_q4  + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+
+robust_se <- vcovHC(model_0, type = "HC1")
+coeftest(model_0, robust_se) #hetero
+summary(model_0) #homo
+```
+```{r}
+vif(model_0)
+```
+VIF blows up when we use spend_all_q# -> why we use spend_all
+
+## Model with different employment
+```{r}
+# extend with employment quartiles
+
+model_1 <- lm(revenue_all ~ wave1 + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+
+#emp_incbelowmed + emp_incmiddle + emp_incabovemed
+#emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4
+
+robust_se <- vcovHC(model_1, type = "HC1")
+coeftest(model_1, robust_se) #hetero
+summary(model_1) #homo
+```
+
+```{r}
+vif(model_1)
+```
+Again high VIF
+
+
+## Model without region
+
+```{r}
+model_2 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all, data = emp_aff_math_biz)
+
+robust_se <- vcovHC(model_2, type = "HC1")
+coeftest(model_2, robust_se) #hetero
+summary(model_2) #homo
+```
+
+```{r}
+vif(model_2)
+```
+
+lower R^2 without region component
+
+## Model with different engagement levels
+```{r}
+model_3 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement_inclow + engagement_incmiddle + engagement_inchigh + merchants_all + NE + W + S, data = emp_aff_math_biz)
+
+robust_se <- vcovHC(model_3, type = "HC1")
+coeftest(model_3, robust_se) #hetero
+summary(model_3) #homo
+plot(model_3)
+```
+
+```{r}
+vif(model_3)
+```
+
+# Original Model
+```{r}
+emp_aff_math_biz <- emp_aff_math_biz %>%
+  filter(!is.na(revenue_all))
+emp_aff_math_biz$revenue_all <- as.numeric(emp_aff_math_biz$revenue_all)
+emp_aff_math_biz$merchants_all <- as.numeric(emp_aff_math_biz$merchants_all)
+emp_aff_math_biz$spend_all <- as.numeric(emp_aff_math_biz$spend_all)
+emp_aff_math_biz$emp <- as.numeric(emp_aff_math_biz$emp)
+emp_aff_math_biz$engagement <- as.numeric(emp_aff_math_biz$engagement)
+
+full_model1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+robust_se <- vcovHC(full_model1, type = "HC1")
+coeftest(full_model1, robust_se) #hetero
+summary(full_model1) #homo
+plot(full_model1)
+```
+
+## FINAL MODEL
+```{r}
+model_4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = emp_aff_math_biz)
+
+robust_se <- vcovHC(model_4, type = "HC1")
+coeftest(model_4, robust_se) #hetero
+summary(model_4) #homo
+#plot(model_4)
+```
+
+```{r}
+vif(model_4)
+```
 
