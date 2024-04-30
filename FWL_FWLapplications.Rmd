@@ -1,0 +1,152 @@
+---
+title: "FWL"
+output: html_document
+date: "2024-04-26"
+---
+
+```{r}
+library(dplyr)
+```
+
+# Full Model
+
+```{r}
+# Full regression model including both emp and spend_all
+full_model <- lm(revenue_all ~ emp + spend_all, data = emp_aff_biz)
+summary(full_model)
+```
+
+# FWL
+
+```{r}
+# impact of employment levels on revenue ind of business spending
+
+# Short Regression for X2 (emp) on X1 (spend_all)
+model_emp_on_spend_all <- lm(emp ~ spend_all, data = emp_aff_biz)
+resid_emp <- residuals(model_emp_on_spend_all) # portion of emp that cannot be explained by spend_all
+
+# Short regression for Y (revenue_all) on X1 (Spend_all)
+model_Revenue_on_spend_all <- lm(revenue_all ~ spend_all, data = emp_aff_biz)
+resid_Revenue1 <- residuals(model_Revenue_on_spend_all) # portion of revenue_all that canot be explained by spend_all
+
+# Regress the Y (revenue_all) on the X2 residuals of emp
+model_rev_on_emp_residuals <- lm(revenue_all ~ resid_emp, data = emp_aff_biz)
+summary(model_rev_on_emp_residuals)
+
+# Regress the residuals of Y (revenue_all) on the X2 residuals of emp
+model_rev_residuals_on_emp_residuals <- lm(resid_Revenue1 ~ resid_emp, data = emp_aff_biz)
+summary(model_rev_residuals_on_emp_residuals)
+```
+
+```{r}
+# understand how spending influences revenue ind of employment levels
+
+# Short Regression for spend_all (now X2) on emp (now X1)
+model_spend_all_on_emp <- lm(spend_all ~ emp, data = emp_aff_biz)
+resid_spend_all <- residuals(model_spend_all_on_emp)
+
+# Short Regression for Y (revenue_all) on emp (now X1)
+model_Revenue_on_emp <- lm(revenue_all ~ emp, data = emp_aff_biz)
+resid_Revenue2 <- residuals(model_Revenue_on_emp)
+
+# Regress the Y (revenue_all) on the residuals of spend_all
+model_rev_on_spend_all_residuals <- lm(revenue_all ~ resid_spend_all, data = emp_aff_biz)
+summary(model_rev_on_spend_all_residuals)
+
+# Regress the residuals of Y (revenue_all) on the residuals of spend_all
+model_rev_residuals_on_spend_all_residuals <- lm(resid_Revenue2 ~ resid_spend_all, data = emp_aff_biz)
+summary(model_rev_residuals_on_spend_all_residuals)
+```
+
+Both variables show a significant impact on revenue, but the impact of spending is not only stronger in terms of the coefficient but also explains more variability in revenue (11.71% than 5.27%), making it potentially a more impactful lever for influencing revenue changes.
+
+# Applications of FWL
+
+# correlation coefficient 
+
+```{r}
+rho_rev_emp <- cor(emp_aff_biz$emp, emp_aff_biz$revenue_all, method = "pearson")
+rho_rev_spend <- cor(emp_aff_biz$spend_all, emp_aff_biz$revenue_all, method = "pearson")
+print(rho_rev_emp)
+print(rho_rev_spend)
+```
+
+# partial correlation coefficient 
+
+```{r}
+# partial correlation coefficient of y (revenue) and x (emp) given w (spendall)
+rho_yx <- cor(emp_aff_biz$emp, emp_aff_biz$revenue_all, method = "pearson")
+rho_yw <- cor(emp_aff_biz$spend_all, emp_aff_biz$revenue_all, method = "pearson")
+rho_xw <- cor(emp_aff_biz$emp, emp_aff_biz$spend_all, method = "pearson")
+partial1 <- (rho_yx - rho_yw*rho_xw)/(sqrt(1 - (rho_yw)^2))*1/(sqrt(1 - (rho_xw)^2))
+partial2 <- cor(resid_Revenue1, resid_emp, method = "pearson")
+print(partial1)
+print(partial2)
+```
+
+```{r}
+# partial correlation coefficient of y (revenue) and x (spendall) given w (emp)
+rho_yx <- cor(emp_aff_biz$spend_all, emp_aff_biz$revenue_all, method = "pearson")
+rho_yw <- cor(emp_aff_biz$emp, emp_aff_biz$revenue_all, method = "pearson")
+rho_xw <- cor(emp_aff_biz$emp, emp_aff_biz$spend_all, method = "pearson")
+partial3 <- (rho_yx - rho_yw*rho_xw)/(sqrt(1 - (rho_yw)^2))*1/(sqrt(1 - (rho_xw)^2))
+partial4 <- cor(resid_Revenue2, resid_spend_all, method = "pearson")
+print(partial3)
+print(partial4)
+```
+
+# Anova Tests - testing joint significance
+
+```{r}
+# Fit the reduced model without the COVID wave variable
+reduced_model1 <- lm(revenue_all ~ emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+
+# Compare the reduced model to the full model using an ANOVA
+anova_result <- anova(reduced_model1, full_model1)
+
+# Print the ANOVA result
+print(anova_result)
+```
+The output provides F-statistics and p-values that tell us whether including the COVID wave variable significantly improves the model. The p-value associated with the model comparison is below a conventional significance level (e.g., 0.05), so we can conclude that the COVID wave variable does provide significant additional explanatory power to the model.
+
+```{r}
+# Fit the reduced model without the COVID wave variable
+reduced_model2 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all, data = emp_aff_math_biz)
+
+# Compare the reduced model to the full model using an ANOVA
+anova_result <- anova(reduced_model2, full_model1)
+
+# Print the ANOVA result
+print(anova_result)
+```
+```{r}
+# alternate way of doing this 
+linearHypothesis(full_model1, c("NE = 0", "W = 0", "S = 0"))
+```
+
+The output provide F-statistics and p-values that tell us whether including the regions significantly improve the model. The p-value associated with the model comparison is below 0.05, so we can conclude that the region variables do provide significant additional explanatory power to the model.
+
+Story - "In our study, we aim to understand the impact of the COVID-19 pandemic on small businesses in the United States, particularly on their revenue. To do this, we developed a comprehensive model that accounts for different variables including the presence of COVID-19 waves, regional factors, employment levels, engagement in education, and consumer spending. Our initial regression results indicate that each of these factors plays a role, with consumer spending and the presence of merchants showing particularly strong associations with revenue.
+
+To further delve into the influence of the pandemic, we can perform an ANOVA test. This will help us test the collective impact of these variables and isolate the effect of COVID-19. Specifically, by comparing a model that excludes the COVID wave variable to the full model, we can determine whether the COVID waves significantly affect small business revenue after controlling for other factors.
+
+If the ANOVA test reveals that the full model, including the COVID wave variable, significantly improves our ability to predict revenue, it would suggest that the timing of the pandemic waves plays a crucial role in understanding economic outcomes for small businesses beyond what can be explained by employment or consumer spending alone, which it does.
+
+This analysis is not just a statistical exercise; it provides insights for policymakers and business owners. For example, finding a significant impact from COVID-19 waves could imply the need for targeted support during specific periods of the pandemic, helping to stabilize small businesses when they're most vulnerable."
+
+Another key interests was to assess the impact of the pandemic on small business revenue across different regions of the country. While the model coefficients provided insights into the individual effects of each predictor variable, we wanted to test the joint significance of the regional variables (NE, W, and S) to understand if the pandemic's impact varied significantly across regions. Specifically, we tested the null hypothesis that the coefficients of NE, W, and S are simultaneously equal to zero, which would imply that the regional variables collectively have no significant effect on small business revenue.
+
+The small p-value (< 0.001) suggests that the null hypothesis, which states that the coefficients of NE, W, and S are simultaneously equal to zero, can be rejected at a high level of confidence. In other words, the region variables (NE, W, and S) are jointly significant in the model.
+
+Therefore, the interpretation is that the regional variables (NE, W, and S) have a significant joint effect on the response variable revenue_all, after accounting for the other predictor variables in the model (wave1, emp, spend_all, engagement, and merchants_all). This finding suggests that the impact of the COVID-19 pandemic on small business revenue varied significantly across regions in the United States. 
+
+Therefore, our analysis highlights the importance of considering regional variations in developing policies and strategies to support small businesses during economic disruptions like the COVID-19 pandemic. While national-level measures may be necessary, our results indicate that tailored approaches that account for regional disparities could be more effective in addressing the unique challenges faced by small businesses in different parts of the country. 
+
+Touch upon the policy DF if we want to.
+
+## To do : 
+
+## When we try other models, with other covariates like merchants_ etc or other revenues_ then we can add a couple of them together and then run other ANOVAs..
+
+
+
