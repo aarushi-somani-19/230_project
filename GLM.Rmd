@@ -1,0 +1,52 @@
+---
+title: "glm"
+output: html_document
+date: "2024-04-30"
+---
+
+```{r}
+glm_model <- glm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+summary(glm_model)
+plot(glm_model)
+```
+
+```{r}
+glm_gaussian <- glm(revenue_all ~ wave1 + emp + spend_all + NE + W + S + merchants_all + engagement, data = emp_aff_math_biz, family = gaussian())
+summary(glm_gaussian)
+```
+```{r}
+glm_gamma <- glm(abs(revenue_all) ~ wave1 + emp + spend_all + NE + W + S + merchants_all + engagement, data = emp_aff_math_biz, family = Gamma(link = "log"))
+summary(glm_gamma)
+```
+
+```{r}
+# Find the minimum value of revenue_all and add a bit more to ensure positivity
+min_value <- min(emp_aff_math_biz$revenue_all)
+offset <- ifelse(min_value <= 0, abs(min_value) + 1, 0)
+
+full_model_bc = lm(I(revenue_all + offset) ~ wave1 + emp + spend_all + NE + W + S + merchants_all + engagement, data = emp_aff_math_biz)
+boxcox ( full_model_bc , lambda = seq (0, 3, 0.1), plotit = TRUE )
+full_model_bc_trans = lm(I((revenue_all + offset)^2) ~ wave1 + emp + spend_all + NE + W + S + merchants_all + engagement, data = emp_aff_math_biz)
+hist ( full_model_bc$residuals , xlab = " residual ", ylab = "",
+main = "revenue_all", font.main = 1)
+hist ( full_model_bc_trans$residuals , xlab = " residual ", ylab = "",
+main = "revenue_all^0.4", font.main = 1)
+```
+```{r}
+plot(full_model_bc)
+plot(full_model_bc_trans)
+```
+
+```{r}
+library(mgcv)
+
+# Fit a GAM model
+# s() is used to fit a smooth term for each predictor you think has a non-linear relationship
+gam_model <- gam(revenue_all ~ wave1 + s(emp) + s(spend_all) + NE + W + S + s(merchants_all) + s(engagement), 
+                 data = emp_aff_math_biz)
+
+summary(gam_model)
+
+# Plot the smooth terms to inspect the non-linear relationships
+plot(gam_model, pages=1)  # Set pages = 1 to plot all on one page
+```
