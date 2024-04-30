@@ -147,12 +147,39 @@ robust_se <- vcovHC(model_0, type = "HC1")
 coeftest(model_0, robust_se) #hetero
 summary(model_0) #homo
 ```
+
 ```{r}
 vif(model_0)
 ```
+
 VIF blows up when we use spend_all_q# -> why we use spend_all
 
+#Training and testing set - up
+
+```{r}
+library(caret)
+
+# Assuming emp_aff_math_biz is your full dataset
+set.seed(123)  # for reproducibility
+cleaned_data1 <- na.omit(emp_aff_math_biz[, c("revenue_all", "wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S", "emp_incq1", "emp_incq2", "emp_incq3", "emp_incq4", "spend_all_q1", "spend_all_q2", "spend_all_q3", "spend_all_q4", "engagement_inclow", "engagement_incmiddle", "engagement_inchigh", "merchants_professional", "merchants_health", "merchants_food_accommodation", "merchants_other_services", "merchants_retail")])
+training_indices <- createDataPartition(cleaned_data1$revenue_all, p = 0.75, list = FALSE)
+training_data <- cleaned_data1[training_indices, ]
+testing_data <- cleaned_data1[-training_indices, ]
+```
+
+#Training and testing
+
+```{r}
+model_0 <- lm(revenue_all ~ wave1 + emp + spend_all_q1 + spend_all_q2 + spend_all_q3 + spend_all_q4  + engagement + merchants_all + NE + W + S, data = training_data)
+
+# Predict and evaluate model_0
+predictions_0 <- predict(model_0, newdata = testing_data)
+rmse_0 <- sqrt(mean((testing_data$revenue_all - predictions_0)^2))
+print(paste("RMSE for Model 0:", rmse_0))
+```
+
 ## Model with different employment
+
 ```{r}
 # extend with employment quartiles
 
@@ -169,8 +196,19 @@ summary(model_1) #homo
 ```{r}
 vif(model_1)
 ```
-Again high VIF
 
+Again high/decent VIF
+
+#Training and testing
+
+```{r}
+model_1 <- lm(revenue_all ~ wave1 + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_all + engagement + merchants_all + NE + W + S, data = training_data)
+
+# Predict and evaluate model_1
+predictions_1 <- predict(model_1, newdata = testing_data)
+rmse_1 <- sqrt(mean((testing_data$revenue_all - predictions_1)^2))
+print(paste("RMSE for Model 1:", rmse_1))
+```
 
 ## Model without region
 
@@ -188,7 +226,19 @@ vif(model_2)
 
 lower R^2 without region component
 
-## Model with different engagement levels
+#Training and testing
+
+```{r}
+model_2 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all, data = training_data)
+
+# Predict and evaluate model_1
+predictions_2 <- predict(model_2, newdata = testing_data)
+rmse_2 <- sqrt(mean((testing_data$revenue_all - predictions_2)^2))
+print(paste("RMSE for Model 2:", rmse_2))
+```
+
+## Model with different engagement levels - faulty
+
 ```{r}
 model_3 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement_inclow + engagement_incmiddle + engagement_inchigh + merchants_all + NE + W + S, data = emp_aff_math_biz)
 
@@ -202,7 +252,19 @@ plot(model_3)
 vif(model_3)
 ```
 
+#Training and testing
+
+```{r}
+model_3 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement_inclow + engagement_incmiddle + engagement_inchigh + merchants_all + NE + W + S, data = training_data)
+
+# Predict and evaluate model_1
+predictions_3 <- predict(model_3, newdata = testing_data)
+rmse_3 <- sqrt(mean((testing_data$revenue_all - predictions_3)^2))
+print(paste("RMSE for Model 3:", rmse_3))
+```
+
 # Original Model
+
 ```{r}
 emp_aff_math_biz <- emp_aff_math_biz %>%
   filter(!is.na(revenue_all))
@@ -219,7 +281,19 @@ summary(full_model1) #homo
 plot(full_model1)
 ```
 
+#Training and testing
+
+```{r}
+full_model_1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = training_data)
+
+# Predict and evaluate model_1
+predictions_f1 <- predict(full_model_1, newdata = testing_data)
+rmse_f1 <- sqrt(mean((testing_data$revenue_all - predictions_f1)^2))
+print(paste("RMSE for Model 4:", rmse_f1))
+```
+
 ## FINAL MODEL
+
 ```{r}
 model_4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = emp_aff_math_biz)
 
@@ -233,3 +307,13 @@ summary(model_4) #homo
 vif(model_4)
 ```
 
+#Training and testing
+
+```{r}
+model_4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = training_data)
+
+# Predict and evaluate model_1
+predictions_4 <- predict(model_4, newdata = testing_data)
+rmse_4 <- sqrt(mean((testing_data$revenue_all - predictions_4)^2))
+print(paste("RMSE for Model 4:", rmse_4))
+```
