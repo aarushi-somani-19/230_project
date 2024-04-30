@@ -1,0 +1,95 @@
+---
+title: "employment models"
+output: html_document
+date: "2024-04-23"
+---
+
+## Modelling
+
+# Need to check assumptions - check
+# Need to add robust SE - check
+# Need to check interactions + need to add other covariates (maybe remove state??)
+# Need to try other transformations - tired log+1
+# Need to check which maximises adjusted R squared : accordingly choose best model
+
+```{r}
+full_model1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+robust_se <- vcovHC(full_model1, type = "HC1")
+coeftest(full_model1, robust_se) #hetero
+summary(full_model1) #homo
+plot(full_model1)
+```
+
+# Some variability so may need to try transformation but overall, fine (heteroskedasticity)
+
+```{r}
+ols.fit.hc0 = sqrt ( diag ( hccm ( full_model1 , type = "hc0" )))
+ols.fit.hc1 = sqrt ( diag ( hccm ( full_model1 , type = "hc1" )))
+ols.fit.hc2 = sqrt ( diag ( hccm ( full_model1 , type = "hc2" )))
+ols.fit.hc3 = sqrt ( diag ( hccm ( full_model1 , type = "hc3" )))
+ols.fit.hc4 = sqrt ( diag ( hccm ( full_model1 , type = "hc4" )))
+full_model.coef = summary ( full_model1 )$ coef
+tvalues = full_model.coef [ ,1]/ cbind ( full_model.coef [,2], ols.fit.hc0, ols.fit.hc1, ols.fit.hc2, ols.fit.hc3, ols.fit.hc4)
+colnames ( tvalues ) = c(" ols ", "hc0", "hc1", "hc2", "hc3", "hc4")
+round ( tvalues , 2)
+```
+
+# Test for multicollinearity - passed
+
+```{r}
+vif_values <- vif(full_model1)
+print(vif_values)
+```
+
+# Test for normality
+
+```{r}
+# Perform Lilliefors (Kolmogorov-Smirnov) normality test
+lillie_test <- lillie.test(residuals(full_model1))
+
+# Print the results
+print(lillie_test) #small p-value means not normal
+```
+
+# Test for heteroskedasticty and solution (GLM)
+
+```{r}
+# Perform Breusch-Pagan test
+bp_test <- bptest(full_model1)
+bp_value <- bp_test$p.value
+print(bp_value) #small p-value means not homoskedastic
+```
+
+# Alternatively, you can use GLM
+
+```{r}
+glm_model <- glm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+summary(glm_model)
+```
+
+```{r}
+full_model2 <- lm(log(revenue_all +1) ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
+robust_se <- vcovHC(full_model2, type = "HC1")
+coeftest(full_model2, robust_se) #hetero
+summary(full_model2) #homo
+plot(full_model2)
+```
+
+```{r}
+ols.fit.hc0 = sqrt ( diag ( hccm ( full_model2 , type = "hc0" )))
+ols.fit.hc1 = sqrt ( diag ( hccm ( full_model2 , type = "hc1" )))
+ols.fit.hc2 = sqrt ( diag ( hccm ( full_model2 , type = "hc2" )))
+ols.fit.hc3 = sqrt ( diag ( hccm ( full_model2 , type = "hc3" )))
+ols.fit.hc4 = sqrt ( diag ( hccm ( full_model2 , type = "hc4" )))
+full_model.coef = summary ( full_model2 )$ coef
+tvalues = full_model.coef [ ,1]/ cbind ( full_model.coef [,2], ols.fit.hc0, ols.fit.hc1, ols.fit.hc2, ols.fit.hc3, ols.fit.hc4)
+colnames ( tvalues ) = c(" ols ", "hc0", "hc1", "hc2", "hc3", "hc4")
+round ( tvalues , 2)
+```
+
+```{r}
+vif_values <- vif(full_model2)
+print(vif_values)
+```
+
+

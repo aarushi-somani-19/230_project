@@ -1,0 +1,302 @@
+---
+title: "cleaning"
+output: html_document
+date: "2024-04-26"
+---
+
+## Load libraries
+```{r}
+# Load the necessary library
+library(dplyr)
+library(broom)
+library(car)
+library(readr)
+library(lubridate)
+library(data.table)
+library(MASS)
+library(glmnet)
+library(sandwich)
+library(lmtest)
+library(nortest)
+library(boot)
+library(ggplot2)
+```
+
+```{r}
+# Load the datasets
+aff <- read.csv("Affinity - State - Daily.csv")
+
+aff <- aff %>%
+  filter(!is.na(spend_all) & spend_all != ".")
+
+aff$spend_all <- as.numeric(aff$spend_all)
+
+aff <- aff %>%
+  mutate(date = as.Date(paste(year, month, day, sep="-"), format="%Y-%m-%d"))
+
+# Originally 2020-1-13 to 2024-4-7
+aff <- aff %>%
+  filter(date >= as.Date("2020-01-17") & date <= as.Date("2022-01-16"))
+```
+
+```{r}
+# Load the datasets
+emp <- read.csv("Employment - State - Weekly.csv")
+
+emp <- emp %>%
+  filter(!is.na(emp) & emp != ".")
+
+emp$emp <- as.numeric(emp$emp)
+
+emp <- emp %>%
+  mutate(date = make_date(year, month, day_endofweek))
+
+# Originally 2020-1-17 to 2024-2-16
+emp <- emp %>%
+  filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
+```
+
+```{r}
+# Load the datasets
+small_biz <- read.csv("Womply - State - Weekly.csv")
+
+small_biz <- small_biz %>%
+  filter(!is.na(revenue_all) & revenue_all != ".")
+
+small_biz$revenue_all <- as.numeric(small_biz$revenue_all)
+
+small_biz <- small_biz %>%
+  mutate(date = make_date(year, month, day_endofweek))
+
+# Originally 2020-1-12 to 2022-2-6
+small_biz <- small_biz %>%
+  filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
+```
+
+```{r}
+# Load the datasets
+math <- read.csv("Zearn - State - Weekly.csv")
+
+math <- math %>%
+  filter(!is.na(engagement) & engagement != ".")
+
+math$engagement <- as.numeric(math$engagement)
+
+math <- math %>%
+  mutate(date = make_date(year, month, day_endofweek))
+
+# Originally 2019-1-13 to 2024-4-21
+math <- math %>%
+  filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
+```
+
+```{r}
+# Load the datasets
+covid <- read.csv("COVID - State - Daily.csv")
+
+covid <- covid %>%
+  filter(!is.na(case_rate) & case_rate != ".")
+
+covid$case_rate <- as.numeric(covid$case_rate)
+
+covid <- covid %>%
+  mutate(date = as.Date(paste(year, month, day, sep="-"), format="%Y-%m-%d"))
+
+# Originally 2020-1-21 to 2023-5-10
+covid <- covid %>%
+  filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
+```
+
+# Define States
+```{r}
+state_abbreviations <- setNames(
+  c("1"="AL", "2"="AK", "4"="AZ", "5"="AR", "6"="CA", "8"="CO", "9"="CT", "10"="DE", "11"="DC", "12"="FL", "13"="GA", 
+    "15"="HI", "16"="ID", "17"="IL", "18"="IN", "19"="IA", "20"="KS", "21"="KY", "22"="LA", "23"="ME", "24"="MD", "25"="MA", 
+    "26"="MI", "27"="MN", "28"="MS", "29"="MO", "30"="MT", "31"="NE", "32"="NV", "33"="NH", "34"="NJ", "35"="NM", "36"="NY", 
+    "37"="NC", "38"="ND", "39"="OH", "40"="OK", "41"="OR", "42"="PA", "44"="RI", "45"="SC", "46"="SD", "47"="TN", "48"="TX", 
+    "49"="UT", "50"="VT", "51"="VA", "53"="WA", "54"="WV", "55"="WI", "56"="WY"),
+  c("1", "2", "4", "5", "6", "8", "9", "10", "11", "12", "13", 
+    "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", 
+    "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", 
+    "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48", 
+    "49", "50", "51", "53", "54", "55", "56")
+)
+
+# Define region categories
+northeast_states <- c('CT', 'ME', 'MA', 'NH', 'RI', 'VT', 'NY', 'NJ', 'PA')
+west_states <- c('WA', 'OR', 'CA', 'NV', 'ID', 'MT', 'WY', 'UT', 'CO', 'NM', 'AZ', 'AK', 'HI')
+south_states <- c('TX', 'OK', 'AR', 'LA', 'MS', 'AL', 'TN', 'KY', 'FL', 'GA', 'SC', 'NC', 'VA', 'WV', 'MD', 'DE', 'DC')
+midwest_states <- c('ND', 'SD', 'NE', 'KS', 'MN', 'IA', 'MO', 'WI', 'IL', 'IN', 'OH', 'MI')
+
+# Add a new column with state abbreviations using the lookup vector
+emp <- emp %>%
+  mutate(state_abbr = state_abbreviations[as.character(statefips)])
+
+aff <- aff %>%
+  mutate(state_abbr = state_abbreviations[as.character(statefips)])
+
+# Create dummy variables for each region
+aff <- aff %>%
+  mutate(
+    NE = ifelse(state_abbr %in% northeast_states, 1, 0),
+    W = ifelse(state_abbr %in% west_states, 1, 0),
+    S = ifelse(state_abbr %in% south_states, 1, 0),
+    MW = ifelse(state_abbr %in% midwest_states, 1, 0)
+  )
+
+emp <- emp %>%
+  mutate(
+    NE = ifelse(state_abbr %in% northeast_states, 1, 0),
+    W = ifelse(state_abbr %in% west_states, 1, 0),
+    S = ifelse(state_abbr %in% south_states, 1, 0),
+    MW = ifelse(state_abbr %in% midwest_states, 1, 0)
+  )
+```
+
+# create wave dummies
+```{r}
+aff <- aff %>%
+  mutate(
+    wave1 = ifelse(date >= as.Date("2020-01-17") & date <= as.Date("2020-12-19"), 1, 0),
+    wave2 = ifelse(date >= as.Date("2020-12-20"), 1, 0),
+  )
+```
+
+# create wave dummies
+```{r}
+emp <- emp %>%
+  mutate(
+    wave1 = ifelse(date >= as.Date("2020-01-17") & date < as.Date("2020-12-25"), 1, 0),
+    wave2 = ifelse(date > as.Date("2020-12-25"), 1, 0)
+  )
+```
+
+```{r}
+colnames(aff)
+```
+
+```{r}
+colnames(emp)
+```
+
+## Merging emp and aff (5250*59)
+
+```{r, warning=FALSE}
+aff <- aff %>%
+  mutate(across(matches("^spend_|^freq$"), ~ as.numeric(as.character(.))))
+
+# Convert data frames to data.tables
+setDT(aff)
+setDT(emp)
+
+# Convert dates to Date objects
+aff[, date := as.Date(date)]
+emp[, date := as.Date(paste(year, month, day_endofweek, sep = "-"))]
+
+# Identify numeric columns for the mean calculation
+numeric_cols <- names(aff)[sapply(aff, is.numeric)]
+
+# Aggregate the daily data to weekly, calculating means only for numeric columns
+aff_weekly <- aff[, lapply(.SD, mean, na.rm = TRUE), by = .(statefips, date = floor_date(date, "week")), .SDcols = numeric_cols]
+
+aff_weekly$date <- aff_weekly$date + 5
+
+# Now merge the weekly datasets
+emp_aff <- emp[aff_weekly, on = .(date, statefips)]
+
+emp_aff <- emp_aff[!is.na(emp_aff$year), ]
+```
+
+```{r}
+colnames(emp_aff)
+```
+
+## Merging emp_aff with math (5311*78)
+
+```{r}
+emp_aff$date <- as.Date(emp_aff$date)
+math$date <- as.Date(math$date)
+math$date <- math$date - 2
+
+emp_aff_math <- merge(emp_aff, math, by = c("date", "statefips"), all = TRUE)
+```
+
+```{r}
+colnames(emp_aff_math)
+```
+
+## Merging emp_aff_math with small_biz (5352*93)
+
+```{r}
+emp_aff_math$date <- as.Date(emp_aff_math$date)
+small_biz$date <- as.Date(small_biz$date)
+small_biz$date <- small_biz$date + 5
+
+emp_aff_math_biz <- merge(emp_aff_math, small_biz, by = c("date", "statefips"), all = TRUE)
+
+emp_aff_math_biz <- emp_aff_math_biz %>%
+  filter(date <= as.Date("2022-01-14"))
+```
+
+```{r}
+colnames(emp_aff_math_biz)
+```
+
+## Ensuring all required columns are numeric to we can run lm
+
+```{r}
+emp_aff_math_biz <- emp_aff_math_biz %>%
+  filter(!is.na(revenue_all))
+emp_aff_math_biz$revenue_all <- as.numeric(emp_aff_math_biz$revenue_all)
+emp_aff_math_biz$merchants_all <- as.numeric(emp_aff_math_biz$merchants_all)
+emp_aff_math_biz$spend_all <- as.numeric(emp_aff_math_biz$spend_all)
+emp_aff_math_biz$emp <- as.numeric(emp_aff_math_biz$emp)
+emp_aff_math_biz$engagement <- as.numeric(emp_aff_math_biz$engagement)
+```
+
+## Merging emp_aff_math_biz with covid (5069*109)
+
+```{r}
+# Convert data frames to data.tables
+setDT(covid)
+
+# Identify numeric columns for the mean calculation
+numeric_cols <- c("year", "month", "day", "statefips", "case_count", "new_case_count", "death_count", "new_death_count", "case_rate", "new_case_rate", "death_rate", "new_death_rate", "vaccine_count", "new_vaccine_count", "vaccine_rate", "new_vaccine_rate")
+covid[, (numeric_cols) := lapply(.SD, as.numeric), .SDcols = numeric_cols]
+
+# Aggregate the daily data to weekly, calculating means
+covid_weekly <- covid[, lapply(.SD, mean, na.rm = TRUE), by = .(statefips, date = floor_date(date, "week")), .SDcols = numeric_cols]
+
+covid_weekly$date <- covid_weekly$date - 2
+
+# Now merge the weekly datasets
+emp_aff_math_biz_covid <- emp_aff_math_biz[covid_weekly, on = .(date, statefips)]
+```
+
+```{r}
+colnames(emp_aff_math_biz_covid)
+```
+
+## Either emp_aff_math_biz could be the final dataset (preffered I guess) - But covid waves here are no longer significant in the model
+
+## Or emp_aff_math_biz_covid could be the final dataset - Since we have covid metrics but covid dataset does not have data for all state for the whole time period (5000 rows only)
+
+## Merging emp_aff with small_biz for FWL 
+
+```{r}
+emp_aff_biz <- merge(emp_aff, small_biz, by = c("date", "statefips"), all = TRUE)
+
+emp_aff_biz <- emp_aff_biz %>%
+  filter(!is.na(revenue_all) & revenue_all != ".")
+
+emp_aff_biz <- emp_aff_biz %>%
+  filter(!is.na(emp) & emp != ".")
+
+emp_aff_biz <- emp_aff_biz %>%
+  filter(!is.na(spend_all) & spend_all != ".")
+```
+
+```{r}
+cleaned_data <- na.omit(emp_aff_math_biz[, c("revenue_all", "wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S")])
+```
+

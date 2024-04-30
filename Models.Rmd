@@ -1,0 +1,138 @@
+---
+title: "Models"
+output: pdf_document
+date: "2024-04-23"
+---
+
+# Need to check assumptions, which maximises adjusted R squared
+# Need to add robust SE
+# Need to check interactions + need to add other covariates
+# Need to try other transformations
+
+```{r}
+total_spend_model <- lm(spend_all ~ wave1 + wave2 + wave3, data = aff)
+summary(total_spend_model)
+plot(total_spend_model)
+```
+
+```{r}
+total_spend_model_q1 <- lm(spend_all_q1 ~ wave1 + wave2 + wave3, data = aff_clean)
+summary(total_spend_model_q1)
+plot(total_spend_model_q1)
+
+total_spend_model_q2 <- lm(spend_all_q2 ~ wave1 + wave2 + wave3, data = aff_clean)
+summary(total_spend_model_q2)
+plot(total_spend_model_q2)
+
+total_spend_model_q3 <- lm(spend_all_q3 ~ wave1 + wave2 + wave3, data = aff_clean)
+summary(total_spend_model_q3)
+plot(total_spend_model_q3)
+
+total_spend_model_q4 <- lm(spend_all_q4 ~ wave1 + wave2 + wave3, data = aff_clean)
+summary(total_spend_model_q4)
+plot(total_spend_model_q4)
+```
+
+```{r}
+aff$statefips <- as.factor(aff$statefips)
+
+# Fit a regression model with statefips as a factor
+state_model <- lm(spend_all ~ wave1 + wave2 + wave3 + statefips, data = aff)
+
+# Print the summary of the model
+summary(state_model)
+plot(state_model)
+```
+
+```{r}
+# List of spending categories
+spending_vars <- c("spend_aap", "spend_acf", "spend_aer", "spend_apg", 
+                   "spend_durables", "spend_nondurables", "spend_grf", 
+                   "spend_gen", "spend_hic", "spend_hcs", "spend_inperson", 
+                   "spend_inpersonmisc", "spend_remoteservices", "spend_sgh", 
+                   "spend_tws", "spend_retail_w_grocery", "spend_retail_no_grocery", 
+                   "spend_all_incmiddle", "spend_all_q1", "spend_all_q2", 
+                   "spend_all_q3", "spend_all_q4")
+
+# Loop through each spending variable and fit a model
+for (spend_var in spending_vars) {
+  # Fit a linear model for each spending category
+  model <- lm(formula = paste(spend_var, "~ wave1 + wave2 + wave3 + statefips"), data = aff)
+  
+  # Use broom to tidy the model summary
+  tidy_model <- tidy(model)
+  
+  # Print the tidy model summary for each spending category
+  cat("\nCoefficient Table for", spend_var, ":\n")
+  print(tidy_model)
+}
+```
+
+# Need to check assumptions, which maximises adjusted R squared
+# Need to add robust SE
+# Need to check interactions + need to add other covariates
+# Need to try other transformations
+
+```{r}
+total_emp_model <- lm(emp ~ wave1 + NE + W + S, data = emp)
+summary(total_emp_model)
+plot(total_emp_model)
+```
+
+```{r}
+# Calculate VIF values
+vif_values <- vif(total_spend_model)
+print(vif_values)
+```
+
+```{r}
+# Calculate VIF values
+vif_values <- vif(total_emp_model)
+print(vif_values)
+```
+
+# Need to check assumptions
+# Need to add robust SE
+# Need to check interactions + need to add other covariates
+# Need to try other transformations
+# Need to check which maximises adjusted R squared : accordingly choose best model
+
+```{r}
+emp_aff$spend_all <- as.numeric(emp_aff$spend_all)
+emp_aff$emp <- as.numeric(emp_aff$emp)
+
+model1 <- lm(spend_all ~ wave1 + emp + NE + W + S, data = emp_aff)
+summary(model1)
+plot(model1)
+
+model2 <- lm(log(spend_all + 1) ~ wave1 + emp + NE + W + S, data = emp_aff)
+summary(model2)
+plot(model2)
+
+model3 <- lm(log(spend_all + 1) ~ wave1 + log(emp + 1) + NE + W + S, data = emp_aff)
+summary(model3)
+plot(model3)
+```
+
+```{r}
+# Calculate VIF values
+vif_values1 <- vif(model1)
+print(vif_values1)
+vif_values2 <- vif(model2)
+print(vif_values2)
+vif_values3 <- vif(model3)
+print(vif_values3)
+```
+
+# Model with emp_aff_math_biz_covid
+
+```{r}
+model4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S + case_rate, data = emp_aff_math_biz_covid)
+robust_se <- vcovHC(model4, type = "HC1")
+coeftest(model4, robust_se) #hetero
+summary(model4) #homo
+plot(model4)
+```
+
+
+
