@@ -1,0 +1,288 @@
+---
+title: "EDA"
+output: pdf_document
+date: "2024-05-01"
+---
+
+```{r}
+library(dplyr)
+library(car)
+library(broom)
+library(ggplot2)
+library(corrplot)
+library(scales)
+```
+
+# Variable Creation for EDA
+
+```{r}
+# Create Wave title column
+emp_aff_math_biz_eda <- emp_aff_math_biz %>%
+  mutate(
+    wave_combination = factor(
+      case_when(
+        wave1 == 1 & wave2 == 0 ~ "Wave 1",
+        wave1 == 0 & wave2 == 1 ~ "Wave 2"
+      ),
+      levels = c("Wave 1", "Wave 2")
+    )
+  ) %>%
+  filter(!is.na(wave_combination))  # Filter out rows where wave_combination is NA
+
+# Convert to numeric type
+columns_to_convert <- c("emp_incmiddle", "emp_incbelowmed", "emp_incabovemed","emp_incq1","emp_incq2","emp_incq3","emp_incq4","engagement_inchigh", "engagement_inclow","engagement_incmiddle","merchants_professional","merchants_health","merchants_food_accommodation","merchants_other_services","merchants_retail", "wave1","wave2")
+
+# Convert selected columns to numeric
+emp_aff_math_biz_eda <- emp_aff_math_biz_eda %>%
+  mutate(across(.cols = columns_to_convert, .fns = ~as.numeric(as.character(.))))
+```
+
+# Waves EDA
+
+```{r}
+# revenue
+ggplot(emp_aff_math_biz_eda, aes(x = wave_combination, y = revenue_all, fill = wave_combination)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Wave 1" = "#A9CCE3", "Wave 2" = "#D7BDE2")) +
+  labs(
+    title = "Box Plot of Revenue All by Wave",
+    x = "Wave Combination",
+    y = "Revenue All"
+  ) +
+  theme_minimal()
+
+# spend
+ggplot(emp_aff_math_biz_eda, aes(x = wave_combination, y = spend_all, fill = wave_combination)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Wave 1" = "#A9CCE3", "Wave 2" = "#D7BDE2")) +
+  labs(
+    title = "Box Plot of Spend All by Wave",
+    x = "Wave Combination",
+    y = "Spend All"
+  ) +
+  theme_minimal()
+
+# emp
+ggplot(emp_aff_math_biz_eda, aes(x = wave_combination, y = emp, fill = wave_combination)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Wave 1" = "#A9CCE3", "Wave 2" = "#D7BDE2")) +
+  labs(
+    title = "Box Plot of Employment by Wave",
+    x = "Wave Combination",
+    y = "Employment"
+  ) +
+  theme_minimal()
+
+# engagement
+ggplot(emp_aff_math_biz_eda, aes(x = wave_combination, y = engagement, fill = wave_combination)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Wave 1" = "#A9CCE3", "Wave 2" = "#D7BDE2")) +
+  labs(
+    title = "Box Plot of Engagement by Wave",
+    x = "Wave Combination",
+    y = "Employment"
+  ) +
+  theme_minimal()
+
+# merchants
+ggplot(emp_aff_math_biz_eda, aes(x = wave_combination, y = merchants_all, fill = wave_combination)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Wave 1" = "#A9CCE3", "Wave 2" = "#D7BDE2")) +
+  labs(
+    title = "Box Plot of Merchants All by Wave",
+    x = "Wave Combination",
+    y = "Merchants All"
+  ) +
+  theme_minimal()
+```
+
+Spending much higher in wave 2 - most pronounced difference among all variables
+ - look at interactions betwen wave and spending
+
+# Region EDA
+
+## Variable creation
+```{r}
+# Create a new dataset with a region factor variable
+emp_aff_math_biz_eda <- emp_aff_math_biz_eda %>%
+  mutate(
+    region = case_when(
+      NE == 1 ~ "Northeast",
+      W == 1 ~ "West",
+      S == 1 ~ "South",
+      MW == 1 ~ "Midwest",
+      TRUE ~ NA_character_  # Handling cases where no dummy is 1 or data is missing
+    ),
+    region = factor(region, levels = c("Northeast", "West", "South", "Midwest"))
+  )
+```
+
+```{r}
+# spending
+ggplot(emp_aff_math_biz_eda, aes(x = region, y = spend_all, fill = region)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a pastel color palette
+  labs(title = "Box Plot of Spend All by Region", x = "Region", y = "Spend All") +
+  theme_minimal()
+
+# revenue
+ggplot(emp_aff_math_biz_eda, aes(x = region, y = revenue_all, fill = region)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a pastel color palette
+  labs(title = "Box Plot of Revenue All by Region", x = "Region", y = "Revenue All") +
+  theme_minimal()
+
+# emp
+ggplot(emp_aff_math_biz_eda, aes(x = region, y = emp, fill = region)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a pastel color palette
+  labs(title = "Box Plot of Employment All by Region", x = "Region", y = "Employment") +
+  theme_minimal()
+
+# engagement
+ggplot(emp_aff_math_biz_eda, aes(x = region, y = engagement, fill = region)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a pastel color palette
+  labs(title = "Box Plot of Engagement by Region", x = "Region", y = "Engagement") +
+  theme_minimal()
+
+# merchants
+ggplot(emp_aff_math_biz_eda, aes(x = region, y = merchants_all, fill = region)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Pastel1") +  # Using a pastel color palette
+  labs(title = "Box Plot of Merchants All by Region", x = "Region", y = "Merchants All") +
+  theme_minimal()
+```
+
+# Revenue EDA
+
+```{r}
+# emp vs rev
+ggplot(emp_aff_math_biz_eda, aes(x = emp, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Employment Level", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "Employment Level vs. Total Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+
+# spend vs rev
+ggplot(emp_aff_math_biz_eda, aes(x = spend_all, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Spending Level", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "Spending Level vs. Total Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+
+# eng vs rev
+ggplot(emp_aff_math_biz_eda, aes(x = engagement, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Engagement", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "Engagement vs. Total Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+
+# merch vs rev
+ggplot(emp_aff_math_biz_eda, aes(x = merchants_all, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + # Color points by wave combination but fit line to all
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Merchants All", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "Merchants All vs. Total Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# emp vs rev
+rev_emp_model <- lm(revenue_all ~ emp, data = emp_aff_math_biz_eda )
+rev_emp_slope <- coef(rev_emp_model)["emp"]
+print(paste("Slope of the regression line rev ~ emp:", rev_emp_slope))
+
+# spend vs rev
+rev_spend_model <- lm(revenue_all ~ spend_all, data = emp_aff_math_biz_eda )
+rev_spend_slope <- coef(rev_spend_model)["spend_all"]
+print(paste("Slope of the regression line rev ~ spend:", rev_spend_slope))
+
+# eng vs rev
+rev_eng_model <- lm(revenue_all ~ engagement, data = emp_aff_math_biz_eda )
+rev_eng_slope <- coef(rev_eng_model)["engagement"]
+print(paste("Slope of the regression line rev ~ eng:", rev_eng_slope))
+
+# merch vs rev
+rev_merch_model <- lm(revenue_all ~ merchants_all, data = emp_aff_math_biz_eda )
+rev_merch_slope <- coef(rev_merch_model)["merchants_all"]
+print(paste("Slope of the regression line rev ~ merch:", rev_merch_slope))
+```
+
+
+# Interactions EDA
+```{r}
+# emp vs spend
+ggplot(emp_aff_math_biz_eda, aes(x = emp, y = spend_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Employment Level", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Total Spending", title = "Employment Level vs. Total Spending by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+
+# emp vs engagement
+ggplot(emp_aff_math_biz_eda, aes(x = emp, y = engagement)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Employment Level", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Engagement", title = "Employment Level vs. Engagement by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+
+# emp vs merchants
+ggplot(emp_aff_math_biz_eda, aes(x = emp, y = merchants_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(method = "lm", se = FALSE, color = "black") + # Single black regression line
+  scale_x_continuous(name = "Employment Level", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) + # Automatically generate "pretty" breaks
+  labs(y = "Merchants All", title = "Employment Level vs. Merchants All by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Emp vs Spending
+aff_emp_model <- lm(spend_all ~ emp, data = emp_aff_math_biz_eda)
+aff_emp_slope <- coef(aff_emp_model)["emp"]
+print(paste("Slope of the regression line emp ~ spend:", aff_emp_slope))
+summary(aff_emp_model)
+
+# Emp vs engagement
+eng_emp_model <- lm(spend_all ~ engagement, data = emp_aff_math_biz_eda)
+eng_emp_slope <- coef(eng_emp_model)["engagement"]
+print(paste("Slope of the regression line emp ~ engagement:", eng_emp_slope))
+
+# Emp vs merchants_all
+merch_emp_model <- lm(spend_all ~ merchants_all, data = emp_aff_math_biz_eda)
+merch_emp_slope <- coef(merch_emp_model)["merchants_all"]
+print(paste("Slope of the regression line emp ~ merchants:", merch_emp_slope))
+summary(merch_emp_model)
+```
+
+consider interactions between emp and spend_all & emp and merchants_all
+
+
+
+
+
