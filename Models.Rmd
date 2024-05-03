@@ -136,6 +136,17 @@ plot(model4)
 
 # Extra models with full_model1 for justification
 
+## Convert data to type numeric MUST RUN
+```{r}
+library(dplyr)
+
+columns_to_convert <- c("emp_incmiddle", "emp_incbelowmed", "emp_incabovemed","emp_incq1","emp_incq2","emp_incq3","emp_incq4","engagement_inchigh", "engagement_inclow","engagement_incmiddle","merchants_professional","merchants_health","merchants_food_accommodation","merchants_other_services","merchants_retail")
+
+# Convert selected columns to numeric
+emp_aff_math_biz <- emp_aff_math_biz %>%
+  mutate(across(.cols = columns_to_convert, .fns = ~as.numeric(as.character(.))))
+```
+
 ## Model with spend_all quartiles
 
 ```{r}
@@ -317,3 +328,55 @@ predictions_4 <- predict(model_4, newdata = testing_data)
 rmse_4 <- sqrt(mean((testing_data$revenue_all - predictions_4)^2))
 print(paste("RMSE for Model 4:", rmse_4))
 ```
+
+# Interactions
+
+Based on EDA we consider different interactions:
+
+## Final model + emp*spend_all
+
+```{r}
+# Interactions Model
+int_model <- lm(revenue_all ~ wave1 + emp + spend_all + engagement +
+                 merchants_professional + merchants_health + 
+                 merchants_food_accommodation + merchants_other_services + 
+                 merchants_retail + NE + W + S + emp*spend_all, data = emp_aff_math_biz)
+                   
+summary(int_model)
+AIC(model_4, int_model)
+BIC(model_4, int_model)
+```
+## Final model + emp*spend_all + waves*merchants
+
+```{r}
+# Update your model to include new interactions
+int_model_1 <- update(int_model, . ~ . + wave1:merchants_professional + wave1:merchants_health + wave1:merchants_food_accommodation + wave1:merchants_other_services + wave1:merchants_retail)
+
+# Check summary for significance
+summary(int_model_1)
+AIC(model_4, int_model_1)
+BIC(model_4, int_model_1)
+```
+adjusted R-squared worse with emp*spend_all interaction
+
+## Final model + emp*spend_all + emp*merchants
+
+```{r}
+# Update your model to include new interactions
+int_model_2 <- update(int_model, . ~ . + emp:merchants_professional + emp:merchants_health + emp:merchants_food_accommodation + emp:merchants_other_services + emp:merchants_retail)
+
+# Check summary for significance
+summary(int_model_2)
+AIC(model_4, int_model_2)
+BIC(model_4, int_model_2)
+```
+
+
+
+
+
+
+
+
+
+
