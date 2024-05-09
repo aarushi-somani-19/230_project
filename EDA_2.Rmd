@@ -203,6 +203,66 @@ ggplot(emp_aff_math_biz_eda, aes(x = merchants_all, y = revenue_all)) +
 ```
 
 ```{r}
+library(ggplot2)
+library(scales)  # For label_comma and pretty_breaks
+
+ggplot(emp_aff_math_biz_eda, aes(x = emp, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(aes(group = wave_combination, color = wave_combination), 
+              method = "lm", se = FALSE) +  # Separate regression lines for each wave
+  scale_x_continuous(name = "% Change in Employment", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) +  # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "% Change in Employment vs. % Change in Net Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ggplot(emp_aff_math_biz_eda, aes(x = spend_all, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(aes(group = wave_combination, color = wave_combination), 
+              method = "lm", se = FALSE) +  # Separate regression lines for each wave
+  scale_x_continuous(name = "% Change in Spending", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) +  # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "% Change in Spending vs. % Change in Net Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(emp_aff_math_biz_eda, aes(x = merchants_all, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(aes(group = wave_combination, color = wave_combination), 
+              method = "lm", se = FALSE) +  # Separate regression lines for each wave
+  scale_x_continuous(name = "% Change in Small Business Openings", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) +  # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "% Change in Small Business Openings vs. % Change in Net Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ggplot(emp_aff_math_biz_eda, aes(x = engagement, y = revenue_all)) +
+  geom_point(aes(color = wave_combination), alpha = 0.5) + 
+  geom_smooth(aes(group = wave_combination, color = wave_combination), 
+              method = "lm", se = FALSE) +  # Separate regression lines for each wave
+  scale_x_continuous(name = "% Change in Math Learning Engagement", 
+                     labels = label_comma(),  # Use comma labels
+                     breaks = pretty_breaks(n = 10)) +  # Automatically generate "pretty" breaks
+  labs(y = "Total Revenue", title = "% Change in Math Learning Engagement vs. % Change in Net Revenue by Wave") +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+
+
+
+```{r}
 # emp vs rev
 rev_emp_model <- lm(revenue_all ~ emp, data = emp_aff_math_biz_eda )
 rev_emp_slope <- coef(rev_emp_model)["emp"]
@@ -279,8 +339,6 @@ merch_emp_slope <- coef(merch_emp_model)["merchants_all"]
 print(paste("Slope of the regression line emp ~ merchants:", merch_emp_slope))
 summary(merch_emp_model)
 ```
-
-consider interactions between emp and spend_all & emp and merchants_all
 
 
 
