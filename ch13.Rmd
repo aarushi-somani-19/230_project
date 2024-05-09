@@ -108,20 +108,3 @@ legend("topright", legend = c("Training Data", "Testing Data"), pch = c(19, 17),
 
 ```
 
-# CV - doesnt work??
-
-```{r}
-# Define the number of folds for k-fold cross-validation
-k <- 10
-
-# Set up k-fold cross-validation on the full dataset
-set.seed(123)  # for reproducibility
-cv_results <- cv.glm(emp_aff_math_biz, full_model1, K = k)
-
-# Print out the results
-print(cv_results)
-
-# Access the cross-validated estimate of prediction error
-cv_error <- cv_results$delta[1]
-cat("K-fold CV estimate of prediction error:", cv_error, "\n")
-```

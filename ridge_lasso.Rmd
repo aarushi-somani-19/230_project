@@ -3,7 +3,7 @@ title: "Untitled"
 output: html_document
 date: "2024-04-27"
 ---
-
+# Ridge and Lasso 
 ```{r}
 library(glmnet)
 library(data.table)
@@ -62,17 +62,9 @@ lines(lambda_seq, mse_seq, col = "green")
 legend("topright", legend = c("Bias^2", "Variance", "MSE"), col = c("red", "blue", "green"), lty = 1)
 best_lambda
 ```
-First Plot (most helpful?)
+
+First Plot
 Error Path: The plot shows cross-validation process used to select the optimal regularization parameter (lambda) for ridge regression. The x-axis represents the log-transformed lambda values, while the y-axis represents the mean squared error (MSE) for each value of lambda. The plot's trend shows how the model's prediction error changes as the regularization strength varies.
-
-Ridge regression has been utilized to develop a model that incorporates various predictors, such as employment metrics, consumer spending habits, merchant activities, regional factors, and temporal dynamics to understand their collective impact on revenue. By applying a penalty to the coefficients of the model proportional to their size, ridge regression diminishes the risk of overfitting, which can occur when a model learns the training data too closely and fails to generalize well to unseen data.
-
-The cross-validation process helps in determining the optimal lambda, the regularization parameter, which strikes a balance between model complexity and prediction accuracy. As lambda increases, the penalty on the coefficients becomes more severe, which can lead to underfitting if it's too high, meaning the model becomes too simplistic. Conversely, if lambda is too low, the model risks overfitting, as it does not sufficiently penalize large coefficients.
-
-The plot typically includes a vertical dashed line that marks the lambda value that results in the lowest cross-validated MSE. This is the value chosen as the best trade-off between bias and variance. In some cases, a second vertical dashed line represents the most regularized model within one standard error of the minimum MSE, often selected for its simplicity and slightly higher bias but potentially better generalization to new data.
-
- The resulting model, therefore, aims to offer a refined understanding of how the different factors you've included as covariates interact to influence revenue. Such a model can be a valuable tool in strategic decision-making, providing guidance on where to focus resources or policy to optimize revenue across various sectors and regions, even as market conditions evolve.
-
 
 # Ch 15 (ols, ridge, lasso)
 
@@ -96,18 +88,18 @@ xmatrix <- model.matrix(~ . - emp_aff_math_biz_clean$revenue_all, data = emp_aff
 # Fit the linear model using the training set
 ols_lm <- lm(yvector[trainindex] ~ xmatrix)
 
+# Define the response variable and predictors for training and testing
+y_train <- emp_aff_math_biz_clean$revenue_all[trainindex]
+y_test <- emp_aff_math_biz_clean$revenue_all[testindex]
+x_train <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[trainindex, ]
+x_test <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[testindex, ]
+
 # Calculate prediction error and MSE using the test set
 y_test <- yvector[testindex]
 predictions_ols <- predict(ols_lm, newdata = list(x_train = x_test))
 mse_ols <- mean((y_test - predictions_ols)^2)
 
 # Ridge and Lasso
-
-# Define the response variable and predictors for training and testing
-y_train <- emp_aff_math_biz_clean$revenue_all[trainindex]
-y_test <- emp_aff_math_biz_clean$revenue_all[testindex]
-x_train <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[trainindex, ]
-x_test <- model.matrix(~ . - revenue_all, data = emp_aff_math_biz_clean)[testindex, ]
 
 # Ridge regression using glmnet (uses cross-validation to find optimal lambda)
 cv_ridge <- cv.glmnet(x_train, y_train, alpha = 0)  # alpha=0 for ridge regression
@@ -176,13 +168,6 @@ print(mse_plot)
 Lasso Regression (pink bar) has the lowest MSE, indicating that among the three models, it has the best performance in terms of prediction accuracy on the test data.
 OLS Regression (blue bar) has the highest MSE, suggesting that it may be overfitting the data or not adequately capturing the underlying structure compared to the regularized models.
 Ridge Regression (green bar) performs better than OLS but slightly worse than Lasso in this instance.
-
-Interpretation for reference later:
-"In assessing the predictive performance of various regression models, it was found that regularization techniques notably enhanced model accuracy. The Lasso regression model, which includes a penalty term that can reduce the coefficients of less important features to zero, achieved the lowest MSE (0.0206). This suggests not only improved prediction accuracy but also the potential for a more parsimonious model. Conversely, the OLS regression model exhibited the highest MSE (0.0462), indicative of possible overfitting and an inability to generalize as effectively as the regularized models. Ridge regression, while outperforming OLS, did not reach the predictive accuracy of the Lasso model, finishing with an MSE of 0.0211. These results underscore the value of regularization in managing the trade-off between bias and variance, particularly in the context of datasets with potentially correlated predictors."
-
-
-
-
 
 ```{r}
 # For Lasso, glmnet does not provide AIC/BIC directly, you'll need R-squared and could calculate AIC or BIC manually if necessary

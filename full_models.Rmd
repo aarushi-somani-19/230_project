@@ -4,13 +4,7 @@ output: html_document
 date: "2024-04-23"
 ---
 
-## Modelling
-
-# Need to check assumptions - check
-# Need to add robust SE - check
-# Need to check interactions + need to add other covariates (maybe remove state??)
-# Need to try other transformations - tired log+1
-# Need to check which maximises adjusted R squared : accordingly choose best model
+## Modeling
 
 ```{r}
 full_model1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)

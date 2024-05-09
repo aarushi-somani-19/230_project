@@ -9,18 +9,21 @@ date: "2024-04-28"
 Note: emp_aff_math_biz_cl (3020x93)
 
 ```{r}
+# Remove NA's in covariate columns or else WLS won't run accurately (use 3020 rows)
+emp_aff_math_biz_cl <- emp_aff_math_biz[complete.cases(emp_aff_math_biz[, c("emp", "revenue_all","spend_all","engagement","merchants_all")]), ]
+```
+
+
+```{r}
 # Fit the initial OLS model
 ols.fit <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz_cl)
 
 # Create a new dataframe to hold residuals
 dat.res <- emp_aff_math_biz_cl
-## Log transformation of the squared residuals
-dat.res$revenue_all <- log((ols.fit$residuals)^2)
+# Log transformation of the squared residuals; ensure you square the residuals first then take the log
+dat.res$residuals_transformed <- log((ols.fit$residuals)^2)
 
-# If heteroscedasticity is present, proceed with the log transformation of the squared residuals
-emp_aff_math_biz_cl$residuals_transformed <- log(full_model1$residuals^2)
-
-# Fit another OLS model on the transformed residuals
+# Fit another OLS model on the transformed residuals in the new dataframe
 t.res.ols <- lm(residuals_transformed ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = dat.res)
 
 # Calculate weights for FGLS
@@ -35,23 +38,7 @@ round(summary(ols.fit)$coef, 3)
 round(summary(fgls.fit)$coef, 3)
 ```
 
-"In the regression analysis of the emp_aff_math_biz dataset, the application of the FGLS method has showed discrepancies in the estimates of key predictors when compared with OLS results. Notably, the variable engagement, alongside regional dummies, displayed a marked variance in coefficient magnitude and significance, raising concerns over potential misspecification inherent in the original OLS model, perhaps due to it not accounting for non-constant variance across observations."
-
-"The FGLS adjustments, which serve to correct for heteroscedasticity by imposing weights on the data, yielded coefficients that diverged from their OLS counterparts. This was particularly pronounced for the engagement variable, whose impact on revenue_all shifted between models, suggesting that the assumption of constant error variance in the OLS model may not hold."
-
-
 # WLS with full model 1
-
-```{r}
-# Remove NA's in covariate columns or else WLS won't run accurately (use 3020 rows)
-
-# Assuming emp_aff_math_biz is a data.table
-columns_to_check <- c("wave1", "emp", "spend_all", "engagement", "merchants_all", "NE", "W", "S")
-
-# Use .SDcols to specify the columns of interest and na.omit to remove rows with NA
-emp_aff_math_biz_cl <- na.omit(emp_aff_math_biz, cols = columns_to_check)
-```
-
 
 ```{r}
 # Fit the OLS model and handle NAs if they are present
@@ -81,11 +68,6 @@ vif(full_model1)
 
 QQ plot better with WLS
 - Even though the residuals vs. fitted plots might look similar for both models, the QQ plot could reveal that the variance of residuals across the range of fitted values is more consistent in the WLS model.
-
-Possible narrative
-In our pursuit to refine revenue predictions, we've employed advanced statistical techniques that reveal the Weighted Least Squares (WLS) method outperforms the conventional Ordinary Least Squares (OLS) approach for our specific dataset.
-By implementing WLS, we have adjusted our model to give more weight to observations with stable, predictable patterns, and less to those that are more volatile or less reliable. This creates a nuanced lens through which we can view the data, resulting in a more accurate and trustworthy model. The proof lies in the numbers: the WLS model boasts a robust R-squared value of 0.775, indicating that it explains approximately 77.5% of the variation in revenue, a significant increase over the 58.77% accounted for by the OLS model.
-Additionally, the WLS approach has brought into focus the importance of certain key drivers of revenue. It has underscored the substantial positive impact of employment and overall consumer spending on revenue, as well as highlighted how merchant activities powerfully sway economic outcomes. (more statistical signifance with WLS)
 
 
 

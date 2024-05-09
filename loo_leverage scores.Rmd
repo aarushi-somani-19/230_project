@@ -41,15 +41,6 @@ abline(h = 4/(length(cook)-length(coef(full_model1))-2), col = "red") # Add a re
 par(mfrow = c(1, 1))
 ```
 
-Based on the uploaded diagnostic plots, here's what you can interpret:
-
-Leverage Values Plot: Most data points have low leverage, which is good because it means that no single observation unduly influences the regression estimates. However, there are a few points that exceed the common threshold of 2 times the mean leverage value (indicated by the red line). These points with high leverage should be investigated to see if they represent data entry errors, unusual conditions, or influential observations.
-Standardized Residuals Plot: The majority of the standardized residuals lie between -2 and 2, which suggests that the errors are approximately normally distributed. There are a few residuals that exceed these bounds, indicating potential outliers. These should be examined to determine if they may be impacting the regression model significantly.
-Studentized Residuals Plot: Similar to the standardized residuals, the studentized residuals plot indicates potential outliers as some points lie beyond the -3 to 3 range. These points are more extreme and may have a greater influence on the model than those identified by standardized residuals alone.
-Cook's Distance Plot: Most points have very low Cook's distance values, indicating they are not influential on the regression estimates. The red line represents a common rule of thumb for identifying influential points, which is D > 4/(n-k-1). A few points do exceed this threshold, suggesting they have a larger impact on the model and may warrant further investigation.
-
-Overall, these plots suggest that while your regression model appears to be reasonably well-behaved for the majority of the data, there are some observations that may be outliers or potentially influential. Further investigation of these points is warranted to ensure they are not unduly affecting your model's results. This could include checking for data entry errors, understanding if they are true outliers due to exceptional circumstances, or determining if they should be omitted from the analysis for other valid reasons.
-
 We use the leave one out formulas on the points that have high leverage to check whether the coefficients change without them. 
 
 ```{r}
