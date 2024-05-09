@@ -42,11 +42,19 @@ library(mgcv)
 
 # Fit a GAM model
 # s() is used to fit a smooth term for each predictor you think has a non-linear relationship
-gam_model <- gam(revenue_all ~ wave1 + s(emp) + s(spend_all) + NE + W + S + s(merchants_all) + s(engagement), 
+gam_model1 <- gam(revenue_all ~ wave1 + s(emp) + s(spend_all) + NE + W + S + s(merchants_all) + s(engagement), 
                  data = emp_aff_math_biz)
 
-summary(gam_model)
+summary(gam_model1)
 
 # Plot the smooth terms to inspect the non-linear relationships
-plot(gam_model, pages=1)  # Set pages = 1 to plot all on one page
+plot(gam_model1, pages=1)  # Set pages = 1 to plot all on one page
+```
+```{r}
+gam_model2 <- gam(log(revenue_all+1) ~ wave1 + spend_all + NE + W + S + engagement + merchants_food_accommodation + merchants_other_services + s(merchants_retail) + s(emp) + s(merchants_professional) + s(merchants_health), data = emp_aff_math_biz)
+
+summary(gam_model2)
+
+# Plot the smooth terms to inspect the non-linear relationships
+plot(gam_model2, pages=1)
 ```
