@@ -90,23 +90,6 @@ math <- math %>%
   filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
 ```
 
-```{r}
-# Load the datasets
-covid <- read.csv("COVID - State - Daily.csv")
-
-covid <- covid %>%
-  filter(!is.na(case_rate) & case_rate != ".")
-
-covid$case_rate <- as.numeric(covid$case_rate)
-
-covid <- covid %>%
-  mutate(date = as.Date(paste(year, month, day, sep="-"), format="%Y-%m-%d"))
-
-# Originally 2020-1-21 to 2023-5-10
-covid <- covid %>%
-  filter(date >= as.Date("2020-01-12") & date <= as.Date("2022-01-16"))
-```
-
 # Define States
 ```{r}
 state_abbreviations <- setNames(
@@ -253,33 +236,6 @@ emp_aff_math_biz$spend_all <- as.numeric(emp_aff_math_biz$spend_all)
 emp_aff_math_biz$emp <- as.numeric(emp_aff_math_biz$emp)
 emp_aff_math_biz$engagement <- as.numeric(emp_aff_math_biz$engagement)
 ```
-
-## Merging emp_aff_math_biz with covid (5069*109)
-
-```{r}
-# Convert data frames to data.tables
-setDT(covid)
-
-# Identify numeric columns for the mean calculation
-numeric_cols <- c("year", "month", "day", "statefips", "case_count", "new_case_count", "death_count", "new_death_count", "case_rate", "new_case_rate", "death_rate", "new_death_rate", "vaccine_count", "new_vaccine_count", "vaccine_rate", "new_vaccine_rate")
-covid[, (numeric_cols) := lapply(.SD, as.numeric), .SDcols = numeric_cols]
-
-# Aggregate the daily data to weekly, calculating means
-covid_weekly <- covid[, lapply(.SD, mean, na.rm = TRUE), by = .(statefips, date = floor_date(date, "week")), .SDcols = numeric_cols]
-
-covid_weekly$date <- covid_weekly$date - 2
-
-# Now merge the weekly datasets
-emp_aff_math_biz_covid <- emp_aff_math_biz[covid_weekly, on = .(date, statefips)]
-```
-
-```{r}
-colnames(emp_aff_math_biz_covid)
-```
-
-## Either emp_aff_math_biz could be the final dataset (preffered I guess) - But covid waves here are no longer significant in the model
-
-## Or emp_aff_math_biz_covid could be the final dataset - Since we have covid metrics but covid dataset does not have data for all state for the whole time period (5000 rows only)
 
 ## Merging emp_aff with small_biz for FWL 
 
