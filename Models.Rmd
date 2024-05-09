@@ -4,44 +4,31 @@ output: pdf_document
 date: "2024-04-23"
 ---
 
-# Need to check assumptions, which maximises adjusted R squared
-# Need to add robust SE
-# Need to check interactions + need to add other covariates
-# Need to try other transformations
+# Exploring OLS Modeling
 
+## Spending
 ```{r}
-total_spend_model <- lm(spend_all ~ wave1 + wave2 + wave3, data = aff)
+total_spend_model <- lm(spend_all ~ wave1, data = aff)
 summary(total_spend_model)
 plot(total_spend_model)
 ```
 
 ```{r}
-total_spend_model_q1 <- lm(spend_all_q1 ~ wave1 + wave2 + wave3, data = aff_clean)
+total_spend_model_q1 <- lm(spend_all_q1 ~ wave1, data = aff)
 summary(total_spend_model_q1)
 plot(total_spend_model_q1)
 
-total_spend_model_q2 <- lm(spend_all_q2 ~ wave1 + wave2 + wave3, data = aff_clean)
+total_spend_model_q2 <- lm(spend_all_q2 ~ wave1, data = aff)
 summary(total_spend_model_q2)
 plot(total_spend_model_q2)
 
-total_spend_model_q3 <- lm(spend_all_q3 ~ wave1 + wave2 + wave3, data = aff_clean)
+total_spend_model_q3 <- lm(spend_all_q3 ~ wave1, data = aff)
 summary(total_spend_model_q3)
 plot(total_spend_model_q3)
 
-total_spend_model_q4 <- lm(spend_all_q4 ~ wave1 + wave2 + wave3, data = aff_clean)
+total_spend_model_q4 <- lm(spend_all_q4 ~ wave1, data = aff)
 summary(total_spend_model_q4)
 plot(total_spend_model_q4)
-```
-
-```{r}
-aff$statefips <- as.factor(aff$statefips)
-
-# Fit a regression model with statefips as a factor
-state_model <- lm(spend_all ~ wave1 + wave2 + wave3 + statefips, data = aff)
-
-# Print the summary of the model
-summary(state_model)
-plot(state_model)
 ```
 
 ```{r}
@@ -68,10 +55,20 @@ for (spend_var in spending_vars) {
 }
 ```
 
-# Need to check assumptions, which maximises adjusted R squared
-# Need to add robust SE
-# Need to check interactions + need to add other covariates
-# Need to try other transformations
+## Regional
+
+```{r}
+aff$statefips <- as.factor(aff$statefips)
+
+# Fit a regression model with statefips as a factor
+state_model <- lm(spend_all ~ wave1 + statefips, data = aff)
+
+# Print the summary of the model
+summary(state_model)
+plot(state_model)
+```
+
+## Employment
 
 ```{r}
 total_emp_model <- lm(emp ~ wave1 + NE + W + S, data = emp)
@@ -81,21 +78,11 @@ plot(total_emp_model)
 
 ```{r}
 # Calculate VIF values
-vif_values <- vif(total_spend_model)
-print(vif_values)
-```
-
-```{r}
-# Calculate VIF values
 vif_values <- vif(total_emp_model)
 print(vif_values)
 ```
 
-# Need to check assumptions
-# Need to add robust SE
-# Need to check interactions + need to add other covariates
-# Need to try other transformations
-# Need to check which maximises adjusted R squared : accordingly choose best model
+## Spending and Employment modeling
 
 ```{r}
 emp_aff$spend_all <- as.numeric(emp_aff$spend_all)
@@ -124,19 +111,9 @@ vif_values3 <- vif(model3)
 print(vif_values3)
 ```
 
-# Model with emp_aff_math_biz_covid
-
-```{r}
-model4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S + case_rate, data = emp_aff_math_biz_covid)
-robust_se <- vcovHC(model4, type = "HC1")
-coeftest(model4, robust_se) #hetero
-summary(model4) #homo
-plot(model4)
-```
-
 # Extra models with full_model1 for justification
 
-## Convert data to type numeric MUST RUN
+## Convert data to type numeric
 ```{r}
 library(dplyr)
 
@@ -160,12 +137,12 @@ summary(model_0) #homo
 ```
 
 ```{r}
+# calculate VIF
 vif(model_0)
 ```
-
 VIF blows up when we use spend_all_q# -> why we use spend_all
 
-#Training and testing set - up
+# Training and testing set - up
 
 ```{r}
 library(caret)
@@ -193,11 +170,7 @@ print(paste("RMSE for Model 0:", rmse_0))
 
 ```{r}
 # extend with employment quartiles
-
 model_1 <- lm(revenue_all ~ wave1 + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_all + engagement + merchants_all + NE + W + S, data = emp_aff_math_biz)
-
-#emp_incbelowmed + emp_incmiddle + emp_incabovemed
-#emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4
 
 robust_se <- vcovHC(model_1, type = "HC1")
 coeftest(model_1, robust_se) #hetero
@@ -205,6 +178,7 @@ summary(model_1) #homo
 ```
 
 ```{r}
+# calculate VIF
 vif(model_1)
 ```
 
@@ -274,7 +248,7 @@ rmse_3 <- sqrt(mean((testing_data$revenue_all - predictions_3)^2))
 print(paste("RMSE for Model 3:", rmse_3))
 ```
 
-# Original Model
+# Finding full Model
 
 ```{r}
 emp_aff_math_biz <- emp_aff_math_biz %>%
@@ -292,7 +266,7 @@ summary(full_model1) #homo
 plot(full_model1)
 ```
 
-#Training and testing
+# Training and testing
 
 ```{r}
 full_model_1 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_all + NE + W + S, data = training_data)
@@ -303,73 +277,55 @@ rmse_f1 <- sqrt(mean((testing_data$revenue_all - predictions_f1)^2))
 print(paste("RMSE for Model 4:", rmse_f1))
 ```
 
-## FINAL MODEL
+## FINAL MODEL with log transformation
 
 ```{r}
-model_4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = emp_aff_math_biz)
+model_4 <- lm(log(revenue_all+1) ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = emp_aff_math_biz)
 
 robust_se <- vcovHC(model_4, type = "HC1")
 coeftest(model_4, robust_se) #hetero
 summary(model_4) #homo
-#plot(model_4)
+plot(model_4)
 ```
 
 ```{r}
 vif(model_4)
 ```
 
-#Training and testing
+# Training and testing
 
 ```{r}
-model_4 <- lm(revenue_all ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = training_data)
+model_4 <- lm(log(revenue_all+1) ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S, data = training_data)
 
 # Predict and evaluate model_1
 predictions_4 <- predict(model_4, newdata = testing_data)
 rmse_4 <- sqrt(mean((testing_data$revenue_all - predictions_4)^2))
-print(paste("RMSE for Model 4:", rmse_4))
+print(paste("RMSE for Final Model:", rmse_4))
 ```
 
 # Interactions
 
-Based on EDA we consider different interactions:
-
-## Final model + emp*spend_all
+Based on EDA we consider temporal interactions:
 
 ```{r}
-# Interactions Model
-int_model <- lm(revenue_all ~ wave1 + emp + spend_all + engagement +
-                 merchants_professional + merchants_health + 
-                 merchants_food_accommodation + merchants_other_services + 
-                 merchants_retail + NE + W + S + emp*spend_all, data = emp_aff_math_biz)
-                   
+int_model <- lm(log(revenue_all+1) ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S + wave1*emp + wave1*spend_all, data = emp_aff_math_biz)
+robust_se <- vcovHC(int_model, type = "HC1")
+coeftest(int_model, robust_se) #hetero
 summary(int_model)
-AIC(model_4, int_model)
-BIC(model_4, int_model)
 ```
-## Final model + emp*spend_all + waves*merchants
+
+## Training and Testing for Interactions 
 
 ```{r}
-# Update your model to include new interactions
-int_model_1 <- update(int_model, . ~ . + wave1:merchants_professional + wave1:merchants_health + wave1:merchants_food_accommodation + wave1:merchants_other_services + wave1:merchants_retail)
+int_model <- lm(log(revenue_all+1) ~ wave1 + emp + spend_all + engagement + merchants_professional + merchants_health + merchants_food_accommodation + merchants_other_services + merchants_retail + NE + W + S + wave1*emp + wave1*spend_all, data = training_data)
 
-# Check summary for significance
-summary(int_model_1)
-AIC(model_4, int_model_1)
-BIC(model_4, int_model_1)
+# Predict and evaluate model_1
+predictions_4 <- predict(int_model, newdata = testing_data)
+rmse_4 <- sqrt(mean((testing_data$revenue_all - predictions_4)^2))
+print(paste("RMSE for Interaction Model:", rmse_4))
 ```
-adjusted R-squared worse with emp*spend_all interaction
 
-## Final model + emp*spend_all + emp*merchants
 
-```{r}
-# Update your model to include new interactions
-int_model_2 <- update(int_model, . ~ . + emp:merchants_professional + emp:merchants_health + emp:merchants_food_accommodation + emp:merchants_other_services + emp:merchants_retail)
-
-# Check summary for significance
-summary(int_model_2)
-AIC(model_4, int_model_2)
-BIC(model_4, int_model_2)
-```
 
 
 
